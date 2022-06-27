@@ -25,7 +25,7 @@ class GameState:
 
     # TODO top left makes more sense as a set, the order of the cards and
     # spaces does not matter, same for the top right storage
-    def __init__(self, centre, top_left_storage=set(), top_right_storage={}):
+    def __init__(self, columns, top_left_storage=set(), top_right_storage={}):
         # scratch pad to temporarty store cards
         # a space is lost when dragons are stacked here, represented by a
         # Card(None, None)
@@ -34,18 +34,20 @@ class GameState:
         self.top_right_storage = top_right_storage
 
         # The main play area, where all of the cards are placed at the start
-        self.centre = centre
+        self.columns = columns
 
     # All the columns in the centre have no cards
     def is_solved(self):
-        for column in self.centre:
+        for column in self.columns:
             if len(column) != 0:
                 return False
 
         return True
 
+    # TODO SPECIAL card can always be moved to storage, it's hardcoded to have
+    # value of 1 for now
     def _get_move_to_top_right_storage(self):
-        for i, column in enumerate(self.centre):
+        for i, column in enumerate(self.columns):
             if len(column) == 0: continue
             card = column[-1]
             if card.value == 1 or card.suit in self.top_right_storage and self.top_right_storage[card.suit] == card.value - 1:
@@ -59,12 +61,8 @@ class GameState:
     def move_to_top_right_storage(self):
         column_to_move = self._get_move_to_top_right_storage()
 
-        column = self.centre[column_to_move]
-        card = column[-1]
+        card = self.columns[column_to_move].pop()
         self.top_right_storage[card.suit] = card.value
-
-        self.centre[column_to_move] = column[:-1]
-
 
     def __str__(self):
         top_row = "========== GAME STATE =========\n"
@@ -72,29 +70,28 @@ class GameState:
             top_row += str(card)
             top_row += " "
 
-        # TODO show the special card here if it's placed, and get rid of +1
-        for i in range(3 - len(self.top_left_storage) + 2):
+        for i in range(3 - len(self.top_left_storage) + 1):
             top_row += "    "
 
-        for i, card in enumerate(self.top_right_storage):
-            top_row += str(card)
+        for i, key in enumerate(self.top_right_storage):
+            top_row += str(Card(key, self.top_right_storage[key]))
             top_row += " "
 
         # transpopse rows and columns so we can print the cards in the layout
         # that matches the game
-        transposed = list(map(list, itertools.zip_longest(*self.centre, fillvalue=None)))
+        transposed = list(map(list, itertools.zip_longest(*self.columns, fillvalue=None)))
 
-        centre = ""
+        columns = ""
         for i, column in enumerate(transposed):
             for j, card in enumerate(column):
                 if card is None:
-                    centre += "   "
+                    columns += "   "
                 else:
-                    centre += str(card)
-                centre += ' '
-            centre += "\n"
+                    columns += str(card)
+                columns += ' '
+            columns += "\n"
 
-        return top_row + "\n" + centre
+        return top_row + "\n" + columns
 
 
 class Game:
@@ -127,7 +124,6 @@ class Game:
 
         # If we have made a loop of moves, terminate. This prevents following
         # the cycle infinitely
-        print(state)
         if self.already_seen(state):
             return None
 
@@ -180,7 +176,7 @@ if __name__ == "__main__":
 
         column3 = [Card(GREEN, 1),
                    Card(RED, None),
-                   Card(SPECIAL, None),
+                   Card(SPECIAL, 1),
                    Card(RED, 1),
                    Card(GREEN, 6),]
 
@@ -208,7 +204,7 @@ if __name__ == "__main__":
                    Card(GREEN, 9),
                    Card(BLACK, None),]
 
-        centre = [
+        columns = [
                 column0,
                 column1,
                 column2,
@@ -219,10 +215,10 @@ if __name__ == "__main__":
                 column7,
                 ]
 
-        state = GameState(centre, {Card(None, None), Card(BLACK, 3)}, [Card(RED, 1), Card(GREEN, 2), Card(BLACK, 3)])
+        state = GameState(columns, {Card(None, None), Card(BLACK, 3)}, {RED: 1, GREEN: 2, BLACK: 4})
         print(state)
 
-        progressed_centre = [
+        progressed_columns = [
                 [],
                 column1[:2],
                 column2,
@@ -232,7 +228,7 @@ if __name__ == "__main__":
                 column6,
                 column7[:2],
                 ]
-        progressed_state = GameState(progressed_centre)
+        progressed_state = GameState(progressed_columns)
         print(progressed_state)
 
     import unittest
@@ -257,7 +253,29 @@ if __name__ == "__main__":
             self.assertEqual(almost_solved, result[0])
             self.assertTrue(result[-1].is_solved())
 
+            for s in result:
+                print(s)
+
+        def test_move_to_top_right(self):
+            result = [GameState([
+                [
+                    Card(RED, 1),
+                    Card(GREEN, 1),
+                    Card(BLACK, 1),
+                    Card(SPECIAL, 1)], [], [], [], [], [], [], []])];
+            for i in range(4):
+                state = copy.deepcopy(result[-1])
+                self.assertFalse(state.is_solved())
+                self.assertTrue(state.can_move_to_top_right_storage())
+                state.move_to_top_right_storage()
+                result.append(state)
+
+            print('alsdfjalsdjf')
+            for s in result:
+                print(s)
 
     debug_print()
+
+    print('tests')
     unittest.main()
 
