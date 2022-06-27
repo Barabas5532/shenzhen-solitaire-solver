@@ -1,4 +1,5 @@
 import itertools
+import copy
 
 RED = 0
 GREEN = 1
@@ -24,7 +25,7 @@ class GameState:
 
     # TODO top left makes more sense as a set, the order of the cards and
     # spaces does not matter, same for the top right storage
-    def __init__(self, centre, top_left_storage=set(), top_right_storage=set()):
+    def __init__(self, centre, top_left_storage=set(), top_right_storage={}):
         # scratch pad to temporarty store cards
         # a space is lost when dragons are stacked here, represented by a
         # Card(None, None)
@@ -36,12 +37,34 @@ class GameState:
         self.centre = centre
 
     # All the columns in the centre have no cards
-    def is_winning():
-        for column in centre:
-            if column.size != 0:
+    def is_solved(self):
+        for column in self.centre:
+            if len(column) != 0:
                 return False
 
         return True
+
+    def _get_move_to_top_right_storage(self):
+        for i, column in enumerate(self.centre):
+            if len(column) == 0: continue
+            card = column[-1]
+            if card.value == 1 or card.suit in self.top_right_storage and self.top_right_storage[card.suit] == card.value - 1:
+                return i
+
+        return None
+
+    def can_move_to_top_right_storage(self):
+        return self._get_move_to_top_right_storage() is not None
+
+    def move_to_top_right_storage(self):
+        column_to_move = self._get_move_to_top_right_storage()
+
+        column = self.centre[column_to_move]
+        card = column[-1]
+        self.top_right_storage[card.suit] = card.value
+
+        self.centre[column_to_move] = column[:-1]
+
 
     def __str__(self):
         top_row = "========== GAME STATE =========\n"
@@ -75,17 +98,17 @@ class GameState:
 
 
 class Game:
-    def __init__():
+    def __init__(self):
         self.seen_states = set()
 
     def already_seen(self, state):
-        if state in self.seen_state:
+        if state in self.seen_states:
             return True
 
         self.seen_states.add(state)
         return False
 
-    def play(state: GameState):
+    def play(self, state: GameState):
         # the game forces us to move any cards to the top right storage if it's
         # a valid move
         #
@@ -104,7 +127,8 @@ class Game:
 
         # If we have made a loop of moves, terminate. This prevents following
         # the cycle infinitely
-        if already_seen(state):
+        print(state)
+        if self.already_seen(state):
             return None
 
         # TODO need to keep a record of moves or states from the start of the
@@ -112,99 +136,128 @@ class Game:
         # should return prepend our state to the returned state in the
         # recursive call
 
-        if state.is_winning():
+        if state.is_solved():
             return [state]
 
         # The input state is owned by the caller, and we must not modify it
-        state_copy = state.deepcopy()
+        state_copy = copy.deepcopy(state)
 
         if state_copy.can_move_to_top_right_storage():
-            copy.move_to_top_right_storage()
-            result = play(copy)
+            state_copy.move_to_top_right_storage()
+            result = self.play(state_copy)
             return [state, *result] if result is not None else None
 
         return None
 
 if __name__ == "__main__":
-    print(f"|{Card(suit=RED, value=5)}|")
-    print(f"|{Card(suit=BLACK, value=0)}|")
-    print(f"|{Card(suit=GREEN, value=None)}|")
-    print(f"|{Card(suit=SPECIAL, value=None)}|")
+
+    def debug_print():
+        print(f"|{Card(suit=RED, value=5)}|")
+        print(f"|{Card(suit=BLACK, value=0)}|")
+        print(f"|{Card(suit=GREEN, value=None)}|")
+        print(f"|{Card(suit=SPECIAL, value=None)}|")
 
 
-    # From https://shenzhen-io.fandom.com/wiki/Shenzhen_Solitaire
-    # https://shenzhen-io.fandom.com/wiki/File:Solitaire.png
-    column0 = [Card(BLACK, None),
-               Card(RED, None),
-               Card(BLACK, 7),
-               Card(RED, 7),
-               Card(BLACK, 6),]
+        # From https://shenzhen-io.fandom.com/wiki/Shenzhen_Solitaire
+        # https://shenzhen-io.fandom.com/wiki/File:Solitaire.png
+        column0 = [Card(BLACK, None),
+                   Card(RED, None),
+                   Card(BLACK, 7),
+                   Card(RED, 7),
+                   Card(BLACK, 6),]
 
-    column1 = [Card(RED, None),
-               Card(RED, 9),
-               Card(GREEN, 8),
-               Card(GREEN, 7),
-               Card(RED, 4),]
+        column1 = [Card(RED, None),
+                   Card(RED, 9),
+                   Card(GREEN, 8),
+                   Card(GREEN, 7),
+                   Card(RED, 4),]
 
-    column2 = [Card(GREEN, 2),
-               Card(BLACK, 3),
-               Card(BLACK, 5),
-               Card(RED, 5),
-               Card(GREEN, 3),]
+        column2 = [Card(GREEN, 2),
+                   Card(BLACK, 3),
+                   Card(BLACK, 5),
+                   Card(RED, 5),
+                   Card(GREEN, 3),]
 
-    column3 = [Card(GREEN, 1),
-               Card(RED, None),
-               Card(SPECIAL, None),
-               Card(RED, 1),
-               Card(GREEN, 6),]
+        column3 = [Card(GREEN, 1),
+                   Card(RED, None),
+                   Card(SPECIAL, None),
+                   Card(RED, 1),
+                   Card(GREEN, 6),]
 
-    column4 = [Card(GREEN, 4),
-               Card(RED, 8),
-               Card(RED, 2),
-               Card(RED, 6),
-               Card(BLACK, None),]
+        column4 = [Card(GREEN, 4),
+                   Card(RED, 8),
+                   Card(RED, 2),
+                   Card(RED, 6),
+                   Card(BLACK, None),]
 
-    column5 = [Card(GREEN, 5),
-               Card(BLACK, 4),
-               Card(RED, None),
-               Card(BLACK, 1),
-               Card(BLACK, 8),]
+        column5 = [Card(GREEN, 5),
+                   Card(BLACK, 4),
+                   Card(RED, None),
+                   Card(BLACK, 1),
+                   Card(BLACK, 8),]
 
-    column6 = [Card(GREEN, None),
-               Card(RED, 3),
-               Card(GREEN, None),
-               Card(BLACK, 2),
-               Card(GREEN, None),]
+        column6 = [Card(GREEN, None),
+                   Card(RED, 3),
+                   Card(GREEN, None),
+                   Card(BLACK, 2),
+                   Card(GREEN, None),]
 
-    column7 = [Card(BLACK, 9),
-               Card(BLACK, None),
-               Card(GREEN, None),
-               Card(GREEN, 9),
-               Card(BLACK, None),]
+        column7 = [Card(BLACK, 9),
+                   Card(BLACK, None),
+                   Card(GREEN, None),
+                   Card(GREEN, 9),
+                   Card(BLACK, None),]
 
-    centre = [
-            column0,
-            column1,
-            column2,
-            column3,
-            column4,
-            column5,
-            column6,
-            column7,
-            ]
+        centre = [
+                column0,
+                column1,
+                column2,
+                column3,
+                column4,
+                column5,
+                column6,
+                column7,
+                ]
 
-    state = GameState(centre, {Card(None, None), Card(BLACK, 3)}, [Card(RED, 1), Card(GREEN, 2), Card(BLACK, 3)])
-    print(state)
+        state = GameState(centre, {Card(None, None), Card(BLACK, 3)}, [Card(RED, 1), Card(GREEN, 2), Card(BLACK, 3)])
+        print(state)
 
-    progressed_centre = [
-            [],
-            column1[:2],
-            column2,
-            column3[:2],
-            column4[:1],
-            [],
-            column6,
-            column7[:2],
-            ]
-    progressed_state = GameState(progressed_centre)
-    print(progressed_state)
+        progressed_centre = [
+                [],
+                column1[:2],
+                column2,
+                column3[:2],
+                column4[:1],
+                [],
+                column6,
+                column7[:2],
+                ]
+        progressed_state = GameState(progressed_centre)
+        print(progressed_state)
+
+    import unittest
+
+    class SolitaireTest(unittest.TestCase):
+        def test_is_solved(self):
+            solved = GameState([[], [], [], [], [], [], [], []]);
+            self.assertTrue(solved.is_solved())
+
+            almost_solved = GameState([[Card(RED, 1)], [], [], [], [], [], [], []]);
+            self.assertFalse(almost_solved.is_solved())
+
+            # The base case
+            game = Game()
+            result = game.play(solved)
+            self.assertEqual(1, len(result))
+            self.assertEqual(solved, result[0])
+
+            game = Game()
+            result = game.play(almost_solved)
+            self.assertEqual(2, len(result))
+            self.assertEqual(almost_solved, result[0])
+            self.assertTrue(result[-1].is_solved())
+
+
+    debug_print()
+    unittest.main()
+
