@@ -1,13 +1,13 @@
 import itertools
 import copy
 
-RED = 0
-GREEN = 1
-BLACK = 2
-SPECIAL = 3
+SPECIAL = 0
+RED = 1
+GREEN = 2
+BLACK = 3
 
 class Card:
-    colors = ["🟥", "🟩", "⬛", "🆒"]
+    colors = ["🆒", "🟥", "🟩", "⬛"]
 
     def __init__(self, suit, value: int):
         self.suit = suit
@@ -21,11 +21,14 @@ class Card:
     def __repr__(self):
         return self.__str__()
 
-class GameState:
+    def __hash__(self):
+        return hash(frozenset((self.suit, self.value)))
 
-    # TODO top left makes more sense as a set, the order of the cards and
-    # spaces does not matter, same for the top right storage
-    def __init__(self, columns, top_left_storage=set(), top_right_storage={}):
+    def __eq__(self, other):
+        return (self.suit, self.value) == (other.suit, other.value)
+
+class GameState:
+    def __init__(self, columns, top_left_storage=set(), top_right_storage=[0 for _ in range(4)]):
         # scratch pad to temporarty store cards
         # a space is lost when dragons are stacked here, represented by a
         # Card(None, None)
@@ -50,7 +53,7 @@ class GameState:
         for i, column in enumerate(self.columns):
             if len(column) == 0: continue
             card = column[-1]
-            if card.value == 1 or card.suit in self.top_right_storage and self.top_right_storage[card.suit] == card.value - 1:
+            if card.value == 1 or self.top_right_storage[card.suit] == card.value - 1:
                 return i
 
         return None
@@ -73,8 +76,11 @@ class GameState:
         for i in range(3 - len(self.top_left_storage) + 1):
             top_row += "    "
 
-        for i, key in enumerate(self.top_right_storage):
-            top_row += str(Card(key, self.top_right_storage[key]))
+        for suit, value in enumerate(self.top_right_storage):
+            if value == 0:
+                top_row += "   "
+            else:
+                top_row += str(Card(suit, value))
             top_row += " "
 
         # transpopse rows and columns so we can print the cards in the layout
@@ -93,6 +99,16 @@ class GameState:
 
         return top_row + "\n" + columns
 
+    def _tuple(self):
+        return (frozenset(self.top_left_storage),
+                tuple([tuple(column) for column in self.columns]),
+                tuple(self.top_right_storage))
+
+    def __eq__(self, other):
+        return self._tuple() == other._tuple()
+
+    def __hash__(self):
+        return hash(self._tuple())
 
 class Game:
     def __init__(self):
@@ -215,7 +231,7 @@ if __name__ == "__main__":
                 column7,
                 ]
 
-        state = GameState(columns, {Card(None, None), Card(BLACK, 3)}, {RED: 1, GREEN: 2, BLACK: 4})
+        state = GameState(columns, {Card(None, None), Card(BLACK, 3)}, [0, 1, 2, 4])
         print(state)
 
         progressed_columns = [
@@ -232,6 +248,66 @@ if __name__ == "__main__":
         print(progressed_state)
 
     import unittest
+
+    class CardTest(unittest.TestCase):
+        def test_hashable(self):
+            a = Card(RED, 1)
+            b = Card(RED, 1)
+            c = Card(GREEN, 1)
+            d = Card(RED, 2)
+
+            self.assertFalse(a is b)
+            self.assertTrue(a == b)
+            self.assertTrue(hash(a) == hash(b))
+
+            self.assertFalse(a == c)
+            self.assertFalse(hash(a) == hash(c))
+
+            self.assertFalse(a == d)
+            self.assertFalse(hash(a) == hash(d))
+
+
+    class GameStateTest(unittest.TestCase):
+        def test_move_to_top_right(self):
+            result = [GameState([
+                [
+                    Card(RED, 1),
+                    Card(GREEN, 1),
+                    Card(BLACK, 1),
+                    Card(SPECIAL, 1)], [], [], [], [], [], [], []])];
+            for i in range(4):
+                state = copy.deepcopy(result[-1])
+                self.assertFalse(state.is_solved())
+                self.assertTrue(state.can_move_to_top_right_storage())
+                state.move_to_top_right_storage()
+                result.append(state)
+
+            for s in result:
+                print(s)
+
+            self.assertTrue(state.is_solved())
+
+        def test_hashable(self):
+            empty_columns = [[] for _ in range(8)]
+            a = copy.deepcopy(empty_columns)
+            a[0].append(Card(RED, 1))
+
+            b = copy.deepcopy(empty_columns)
+            b[1].append(Card(RED, 1))
+
+            c = copy.deepcopy(b)
+
+            state_a = GameState(a)
+            state_b = GameState(b)
+            state_c = GameState(c)
+
+            self.assertNotEqual(state_a, state_b)
+            self.assertNotEqual(hash(state_a), hash(state_b))
+
+            print("b: ", state_b)
+            print("c: ", state_c)
+            self.assertEqual(state_b, state_c)
+            self.assertEqual(hash(state_b), hash(state_c))
 
     class SolitaireTest(unittest.TestCase):
         def test_is_solved(self):
@@ -256,23 +332,6 @@ if __name__ == "__main__":
             for s in result:
                 print(s)
 
-        def test_move_to_top_right(self):
-            result = [GameState([
-                [
-                    Card(RED, 1),
-                    Card(GREEN, 1),
-                    Card(BLACK, 1),
-                    Card(SPECIAL, 1)], [], [], [], [], [], [], []])];
-            for i in range(4):
-                state = copy.deepcopy(result[-1])
-                self.assertFalse(state.is_solved())
-                self.assertTrue(state.can_move_to_top_right_storage())
-                state.move_to_top_right_storage()
-                result.append(state)
-
-            print('alsdfjalsdjf')
-            for s in result:
-                print(s)
 
     debug_print()
 
