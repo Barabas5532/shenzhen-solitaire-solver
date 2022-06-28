@@ -5,6 +5,7 @@ SPECIAL = 0
 RED = 1
 GREEN = 2
 BLACK = 3
+FACE_DOWN = 4
 
 class Card:
     colors = ["🆒", "🟥", "🟩", "⬛"]
@@ -14,7 +15,7 @@ class Card:
         self.value = value
 
     def __str__(self):
-        if self.suit is None: return "xxx"
+        if self.suit is FACE_DOWN: return "xxx"
         return f"{self.colors[self.suit]}{self.value if self.value is not None else 'x'}";
 
     # quick hack to make printing an array of card readable
@@ -27,11 +28,21 @@ class Card:
     def __eq__(self, other):
         return (self.suit, self.value) == (other.suit, other.value)
 
+TOP_LEFT = 0
+CENTRE = 1
+class CardPosition():
+    def __init__(self, location, index: int):
+        self.location = location
+        self.index = index
+
 class GameState:
-    def __init__(self, columns, top_left_storage=set(), top_right_storage=[0 for _ in range(4)]):
-        # scratch pad to temporarty store cards
+    def __init__(self, columns, top_left_storage=[], top_right_storage=[0 for _ in range(4)]):
+        assert(list == type(top_left_storage))
+        assert(len(top_left_storage) <= 3)
+
+        # scratch pad to temporarily store cards
         # a space is lost when dragons are stacked here, represented by a
-        # Card(None, None)
+        # Card(FACE_DOWN, None)
         self.top_left_storage = top_left_storage
         # The aim of the game is to get all the cards stacked here
         self.top_right_storage = top_right_storage
@@ -45,6 +56,18 @@ class GameState:
             if len(column) != 0:
                 return False
 
+        # this is only possible if all the dragons have been collected, and the
+        # top right cards all have value 9
+        # This is just a sanity check to make sure the game has not in an
+        # invalid state
+        assert len(self.top_right_storage) == 4
+        assert self.top_right_storage[0] == 1
+        for i in range(1, 4):
+            assert self.top_right_storage[i] == 9
+        assert len(self.top_left_storage) == 3
+        for i in range(3):
+            assert self.top_left_storage[i].suit == FACE_DOWN
+
         return True
 
     # TODO SPECIAL card can always be moved to storage, it's hardcoded to have
@@ -53,8 +76,13 @@ class GameState:
         for i, column in enumerate(self.columns):
             if len(column) == 0: continue
             card = column[-1]
-            if card.value == 1 or self.top_right_storage[card.suit] == card.value - 1:
-                return i
+            if card.value == 1 or card.value is not None and self.top_right_storage[card.suit] == card.value - 1:
+                return CardPosition(CENTRE, i)
+
+        for i, card in enumerate(self.top_left_storage):
+            assert card.value != 1
+            if card.value is not None and self.top_right_storage[card.suit] == card.value - 1:
+                return CardPosition(TOP_LEFT, i)
 
         return None
 
@@ -62,9 +90,17 @@ class GameState:
         return self._get_move_to_top_right_storage() is not None
 
     def move_to_top_right_storage(self):
-        column_to_move = self._get_move_to_top_right_storage()
+        card_position = self._get_move_to_top_right_storage()
+        assert card_position is not None
+        column_to_move = card_position.index
 
-        card = self.columns[column_to_move].pop()
+        if card_position.location == CENTRE:
+            card = self.columns[column_to_move].pop()
+        elif card_position.location == TOP_LEFT:
+            card = self.top_left_storage.pop(card_position.index)
+        else:
+            assert False
+
         self.top_right_storage[card.suit] = card.value
 
     def __str__(self):
@@ -100,7 +136,7 @@ class GameState:
         return top_row + "\n" + columns
 
     def _tuple(self):
-        return (frozenset(self.top_left_storage),
+        return (tuple(self.top_left_storage),
                 tuple([tuple(column) for column in self.columns]),
                 tuple(self.top_right_storage))
 
@@ -157,17 +193,23 @@ class Game:
         if state_copy.can_move_to_top_right_storage():
             state_copy.move_to_top_right_storage()
             result = self.play(state_copy)
-            return [state, *result] if result is not None else None
+            if result is not None: return [state, *result]
+            # We have to make this move, the game won't let us do anything
+            # else. If it results in a losing game, then we need to backtrack
+            return None
+
+        # test out every possible move. The list of all moves are:
+        # - move a card out of the top left storage area to a column
 
         return None
 
 if __name__ == "__main__":
 
     def debug_print():
-        print(f"|{Card(suit=RED, value=5)}|")
-        print(f"|{Card(suit=BLACK, value=0)}|")
-        print(f"|{Card(suit=GREEN, value=None)}|")
-        print(f"|{Card(suit=SPECIAL, value=None)}|")
+        print(Card(suit=RED, value=5))
+        print(Card(suit=BLACK, value=0))
+        print(Card(suit=GREEN, value=None))
+        print(Card(suit=SPECIAL, value=1))
 
 
         # From https://shenzhen-io.fandom.com/wiki/Shenzhen_Solitaire
@@ -231,9 +273,10 @@ if __name__ == "__main__":
                 column7,
                 ]
 
-        state = GameState(columns, {Card(None, None), Card(BLACK, 3)}, [0, 1, 2, 4])
+        state = GameState(columns)
         print(state)
 
+        # XXX: This is an invalid game state, for printing demo only
         progressed_columns = [
                 [],
                 column1[:2],
@@ -244,7 +287,7 @@ if __name__ == "__main__":
                 column6,
                 column7[:2],
                 ]
-        progressed_state = GameState(progressed_columns)
+        progressed_state = GameState(progressed_columns, [Card(FACE_DOWN, None)], [1, 2, 3, 4])
         print(progressed_state)
 
     import unittest
@@ -271,10 +314,10 @@ if __name__ == "__main__":
         def test_move_to_top_right(self):
             result = [GameState([
                 [
-                    Card(RED, 1),
-                    Card(GREEN, 1),
-                    Card(BLACK, 1),
-                    Card(SPECIAL, 1)], [], [], [], [], [], [], []])];
+                    Card(RED, 9),
+                    Card(GREEN, 9),
+                    Card(BLACK, 9),
+                    Card(SPECIAL, 1)], [], [], [], [], [], [], []], [Card(FACE_DOWN, None)] * 3, [0, 8, 8, 8])];
             for i in range(4):
                 state = copy.deepcopy(result[-1])
                 self.assertFalse(state.is_solved())
@@ -282,10 +325,35 @@ if __name__ == "__main__":
                 state.move_to_top_right_storage()
                 result.append(state)
 
+            self.assertTrue(state.is_solved())
+
+        def test_move_storage_to_top_right(self):
+            result = [GameState(
+                [
+                    [Card(RED, 8)],
+                    [Card(RED, None)],
+                    [Card(RED, None)],
+                    [Card(RED, None)],
+                    [Card(RED, None)],
+                    [],
+                    [],
+                    []
+                ],
+                [Card(RED, 9), Card(FACE_DOWN, None), Card(FACE_DOWN, None)],
+                [1, 7, 9, 9],
+                )];
+            for i in range(2):
+                print("top right storage test ", i)
+                state = copy.deepcopy(result[-1])
+                print("top right storage test ", state)
+                self.assertFalse(state.is_solved())
+                print("top right storage test ", state.is_solved())
+                self.assertTrue(state.can_move_to_top_right_storage())
+                state.move_to_top_right_storage()
+                result.append(state)
+
             for s in result:
                 print(s)
-
-            self.assertTrue(state.is_solved())
 
         def test_hashable(self):
             empty_columns = [[] for _ in range(8)]
@@ -310,27 +378,28 @@ if __name__ == "__main__":
             self.assertEqual(hash(state_b), hash(state_c))
 
     class SolitaireTest(unittest.TestCase):
-        def test_is_solved(self):
-            solved = GameState([[], [], [], [], [], [], [], []]);
-            self.assertTrue(solved.is_solved())
+        def setUp(self):
+            self.solved = GameState([[], [], [], [], [], [], [], []], [Card(FACE_DOWN, None)]*3, [1, 9, 9, 9]);
+            self.almost_solved = GameState([[Card(RED, 9)], [], [], [], [], [], [], []], [Card(FACE_DOWN, None)]*3, [1, 8, 9, 9]);
 
-            almost_solved = GameState([[Card(RED, 1)], [], [], [], [], [], [], []]);
-            self.assertFalse(almost_solved.is_solved())
+        def test_is_solved(self):
+            self.assertTrue(self.solved.is_solved())
 
             # The base case
             game = Game()
-            result = game.play(solved)
+            result = game.play(self.solved)
             self.assertEqual(1, len(result))
-            self.assertEqual(solved, result[0])
+            self.assertEqual(self.solved, result[0])
 
+        def test_move_to_top_right_solve(self):
+            self.assertFalse(self.almost_solved.is_solved())
+
+            # Solved after a single iteration
             game = Game()
-            result = game.play(almost_solved)
+            result = game.play(self.almost_solved)
             self.assertEqual(2, len(result))
-            self.assertEqual(almost_solved, result[0])
+            self.assertEqual(self.almost_solved, result[0])
             self.assertTrue(result[-1].is_solved())
-
-            for s in result:
-                print(s)
 
 
     debug_print()
