@@ -1,0 +1,4 @@
+[flake8]
+# This option is not PEP 8 compliant according to Black
+# https://black.readthedocs.io/en/latest/guides/using_black_with_other_tools.html#id1
+extend-ignore = E203

@@ -1,0 +1,6 @@
+# Black ensures no breaking formatting changes on minor releases
+# https://black.readthedocs.io/en/latest/the_black_code_style/index.html?highlight=stability#stability-policy
+black~=22.0
+# Flake8 says that the error codes are stable across minor releases
+# https://flake8.pycqa.org/en/latest/faq.html#why-does-flake8-use-ranges-for-its-dependencies
+flake8~=4.0
