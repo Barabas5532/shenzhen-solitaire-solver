@@ -3,6 +3,17 @@ import copy
 from typing import Optional, List, Tuple, Set
 from enum import IntEnum
 
+Columns = Tuple[
+    List["Card"],
+    List["Card"],
+    List["Card"],
+    List["Card"],
+    List["Card"],
+    List["Card"],
+    List["Card"],
+    List["Card"],
+]
+
 
 class Suit(IntEnum):
     SPECIAL = 0
@@ -57,7 +68,7 @@ class GameState:
     # TODO use tuple to strongly type a fixed length sequence for columns
     def __init__(
         self,
-        columns: List[List[Card]],
+        columns: Columns,
         top_left_storage: List = [],
         top_right_storage: List = [0 for _ in range(4)],
     ) -> None:
@@ -374,7 +385,7 @@ if __name__ == "__main__":
             Card(Suit.BLACK, None),
         ]
 
-        columns = [
+        columns = (
             column0,
             column1,
             column2,
@@ -383,13 +394,13 @@ if __name__ == "__main__":
             column5,
             column6,
             column7,
-        ]
+        )
 
         state = GameState(columns)
         print(state)
 
         # XXX: This is an invalid game state, for printing demo only
-        progressed_columns: List[List[Card]] = [
+        progressed_columns: Columns = (
             [],
             column1[:2],
             column2,
@@ -398,7 +409,7 @@ if __name__ == "__main__":
             [],
             column6,
             column7[:2],
-        ]
+        )
         progressed_state = GameState(
             progressed_columns, [Card(Suit.FACE_DOWN, None)], [1, 2, 3, 4]
         )
@@ -427,7 +438,7 @@ if __name__ == "__main__":
         def test_move_to_top_right(self) -> None:
             result = [
                 GameState(
-                    [
+                    (
                         [
                             Card(Suit.RED, 9),
                             Card(Suit.GREEN, 9),
@@ -441,7 +452,7 @@ if __name__ == "__main__":
                         [],
                         [],
                         [],
-                    ],
+                    ),
                     [Card(Suit.FACE_DOWN, None)] * 3,
                     [0, 8, 8, 8],
                 )
@@ -458,7 +469,7 @@ if __name__ == "__main__":
         def test_move_storage_to_top_right(self) -> None:
             result = [
                 GameState(
-                    [
+                    (
                         [Card(Suit.RED, 8)],
                         [Card(Suit.RED, None)],
                         [Card(Suit.RED, None)],
@@ -467,7 +478,7 @@ if __name__ == "__main__":
                         [],
                         [],
                         [],
-                    ],
+                    ),
                     [
                         Card(Suit.RED, 9),
                         Card(Suit.FACE_DOWN, None),
@@ -487,7 +498,7 @@ if __name__ == "__main__":
                 print(s)
 
         def test_hashable(self) -> None:
-            empty_columns: List[List[Card]] = [[] for _ in range(8)]
+            empty_columns: Columns = ([], [], [], [], [], [], [], [])
             a = copy.deepcopy(empty_columns)
             a[0].append(Card(Suit.RED, 1))
 
@@ -508,7 +519,7 @@ if __name__ == "__main__":
 
         def test_can_move_top_left_to_column(self) -> None:
             state = GameState(
-                [
+                (
                     [
                         Card(Suit.RED, None),
                         Card(Suit.RED, None),
@@ -521,7 +532,7 @@ if __name__ == "__main__":
                     [],
                     [],
                     [],
-                ],
+                ),
                 [
                     Card(Suit.FACE_DOWN, None),
                     Card(Suit.GREEN, None),
@@ -554,12 +565,12 @@ if __name__ == "__main__":
     class SolitaireTest(unittest.TestCase):
         def setUp(self) -> None:
             self.solved = GameState(
-                [[], [], [], [], [], [], [], []],
+                ([], [], [], [], [], [], [], []),
                 [Card(Suit.FACE_DOWN, None)] * 3,
                 [1, 9, 9, 9],
             )
             self.almost_solved = GameState(
-                [[Card(Suit.RED, 9)], [], [], [], [], [], [], []],
+                ([Card(Suit.RED, 9)], [], [], [], [], [], [], []),
                 [Card(Suit.FACE_DOWN, None)] * 3,
                 [1, 8, 9, 9],
             )
