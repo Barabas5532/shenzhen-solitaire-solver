@@ -1,22 +1,31 @@
 import itertools
 import copy
+from typing import Optional, List, Tuple, Set
+from enum import IntEnum
 
-SPECIAL = 0
-RED = 1
-GREEN = 2
-BLACK = 3
-FACE_DOWN = 4
+
+class Suit(IntEnum):
+    SPECIAL = 0
+    RED = 1
+    GREEN = 2
+    BLACK = 3
+    FACE_DOWN = 4
+
+
+class CardLocation(IntEnum):
+    TOP_LEFT = 0
+    CENTRE = 1
 
 
 class Card:
     colors = ["🆒", "🟥", "🟩", "⬛"]
 
-    def __init__(self, suit, value: int):
-        self.suit = suit
-        self.value = value
+    def __init__(self, suit: int, value: Optional[int]) -> None:
+        self.suit: int = suit
+        self.value: Optional[int] = value
 
-    def __str__(self):
-        if self.suit is FACE_DOWN:
+    def __str__(self) -> str:
+        if self.suit is Suit.FACE_DOWN:
             return "xxx"
         return (
             f"{self.colors[self.suit]}"
@@ -24,39 +33,39 @@ class Card:
         )
 
     # quick hack to make printing an array of card readable
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(frozenset((self.suit, self.value)))
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            assert False
+            return False
+
         return (self.suit, self.value) == (other.suit, other.value)
 
 
-TOP_LEFT = 0
-CENTRE = 1
-
-
 class CardPosition:
-    def __init__(self, location, index: int):
+    def __init__(self, location: CardLocation, index: int):
         self.location = location
         self.index = index
 
 
 class GameState:
+    # TODO use tuple to strongly type a fixed length sequence for columns
     def __init__(
         self,
-        columns,
-        top_left_storage=[],
-        top_right_storage=[0 for _ in range(4)],
-    ):
-        assert list == type(top_left_storage)
+        columns: List[List[Card]],
+        top_left_storage: List = [],
+        top_right_storage: List = [0 for _ in range(4)],
+    ) -> None:
         assert len(top_left_storage) <= 3
 
         # scratch pad to temporarily store cards
         # a space is lost when dragons are stacked here, represented by a
-        # Card(FACE_DOWN, None)
+        # Card(Suit.FACE_DOWN, None)
         self.top_left_storage = top_left_storage
         # The aim of the game is to get all the cards stacked here
         self.top_right_storage = top_right_storage
@@ -65,7 +74,7 @@ class GameState:
         self.columns = columns
 
     # All the columns in the centre have no cards
-    def is_solved(self):
+    def is_solved(self) -> bool:
         for column in self.columns:
             if len(column) != 0:
                 return False
@@ -80,13 +89,15 @@ class GameState:
             assert self.top_right_storage[i] == 9
         assert len(self.top_left_storage) == 3
         for i in range(3):
-            assert self.top_left_storage[i].suit == FACE_DOWN
+            assert self.top_left_storage[i].suit == Suit.FACE_DOWN
 
         return True
 
-    # TODO SPECIAL card can always be moved to storage, it's hardcoded to have
-    # value of 1 for now
-    def _get_move_to_top_right_storage(self):
+    # TODO Suit.SPECIAL card can always be moved to storage, it's hardcoded to
+    # have value of 1 for now
+    def _get_move_to_top_right_storage(self) -> Optional[CardPosition]:
+        """Get the position of a card that can be moved to the top right
+        storage, if any"""
         for i, column in enumerate(self.columns):
             if len(column) == 0:
                 continue
@@ -96,7 +107,7 @@ class GameState:
                 or card.value is not None
                 and self.top_right_storage[card.suit] == card.value - 1
             ):
-                return CardPosition(CENTRE, i)
+                return CardPosition(CardLocation.CENTRE, i)
 
         for i, card in enumerate(self.top_left_storage):
             assert card.value != 1
@@ -104,34 +115,38 @@ class GameState:
                 card.value is not None
                 and self.top_right_storage[card.suit] == card.value - 1
             ):
-                return CardPosition(TOP_LEFT, i)
+                return CardPosition(CardLocation.TOP_LEFT, i)
 
         return None
 
-    def can_move_to_top_right_storage(self):
+    def can_move_to_top_right_storage(self) -> bool:
         return self._get_move_to_top_right_storage() is not None
 
-    def move_to_top_right_storage(self):
+    def move_to_top_right_storage(self) -> None:
         card_position = self._get_move_to_top_right_storage()
         assert card_position is not None
         column_to_move = card_position.index
 
-        if card_position.location == CENTRE:
+        if card_position.location == CardLocation.CENTRE:
             card = self.columns[column_to_move].pop()
-        elif card_position.location == TOP_LEFT:
+        elif card_position.location == CardLocation.TOP_LEFT:
             card = self.top_left_storage.pop(card_position.index)
         else:
             assert False
 
         self.top_right_storage[card.suit] = card.value
 
-    def can_move_top_left_to_column(self, top_left_index, column_index):
+    def can_move_top_left_to_column(
+        self,
+        top_left_index: int,
+        column_index: int,
+    ) -> bool:
         if top_left_index >= len(self.top_left_storage):
             return False
 
         card_to_move = self.top_left_storage[top_left_index]
         # Can't move collected dragons
-        if card_to_move.suit is FACE_DOWN:
+        if card_to_move.suit is Suit.FACE_DOWN:
             return False
 
         # We are sure that the top left storage has a movable card now
@@ -150,12 +165,14 @@ class GameState:
             and card_to_move.value == target_card.value - 1
         )
 
-    def move_top_left_to_column(self, top_left_index, column_index):
+    def move_top_left_to_column(
+        self, top_left_index: int, column_index: int
+    ) -> None:
         self.columns[column_index].append(
             self.top_left_storage.pop(top_left_index)
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         top_row = "========== GAME STATE =========\n"
         for i, card in enumerate(self.top_left_storage):
             top_row += str(card)
@@ -174,7 +191,10 @@ class GameState:
         # transpopse rows and columns so we can print the cards in the layout
         # that matches the game
         transposed = list(
-            map(list, itertools.zip_longest(*self.columns, fillvalue=None))
+            map(
+                list,  # type: ignore
+                itertools.zip_longest(*self.columns, fillvalue=None),
+            )
         )
 
         columns = ""
@@ -189,32 +209,37 @@ class GameState:
 
         return top_row + "\n" + columns
 
-    def _tuple(self):
+    def _tuple(self) -> Tuple:
         return (
             tuple(self.top_left_storage),
             tuple([tuple(column) for column in self.columns]),
             tuple(self.top_right_storage),
         )
 
-    def __eq__(self, other):
+    # TODO same bug as __eq__ above
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            assert False
+            return False
+
         return self._tuple() == other._tuple()
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._tuple())
 
 
 class Game:
-    def __init__(self):
-        self.seen_states = set()
+    def __init__(self) -> None:
+        self.seen_states: Set[GameState] = set()
 
-    def already_seen(self, state):
+    def already_seen(self, state: GameState) -> bool:
         if state in self.seen_states:
             return True
 
         self.seen_states.add(state)
         return False
 
-    def play(self, state: GameState):
+    def play(self, state: GameState) -> Optional[List[GameState]]:
         # the game forces us to move any cards to the top right storage if it's
         # a valid move
         #
@@ -277,76 +302,76 @@ class Game:
 
 if __name__ == "__main__":
 
-    def debug_print():
-        print(Card(suit=RED, value=5))
-        print(Card(suit=BLACK, value=0))
-        print(Card(suit=GREEN, value=None))
-        print(Card(suit=SPECIAL, value=1))
+    def debug_print() -> None:
+        print(Card(suit=Suit.RED, value=5))
+        print(Card(suit=Suit.BLACK, value=0))
+        print(Card(suit=Suit.GREEN, value=None))
+        print(Card(suit=Suit.SPECIAL, value=1))
 
         # From https://shenzhen-io.fandom.com/wiki/Shenzhen_Solitaire
         # https://shenzhen-io.fandom.com/wiki/File:Solitaire.png
         column0 = [
-            Card(BLACK, None),
-            Card(RED, None),
-            Card(BLACK, 7),
-            Card(RED, 7),
-            Card(BLACK, 6),
+            Card(Suit.BLACK, None),
+            Card(Suit.RED, None),
+            Card(Suit.BLACK, 7),
+            Card(Suit.RED, 7),
+            Card(Suit.BLACK, 6),
         ]
 
         column1 = [
-            Card(RED, None),
-            Card(RED, 9),
-            Card(GREEN, 8),
-            Card(GREEN, 7),
-            Card(RED, 4),
+            Card(Suit.RED, None),
+            Card(Suit.RED, 9),
+            Card(Suit.GREEN, 8),
+            Card(Suit.GREEN, 7),
+            Card(Suit.RED, 4),
         ]
 
         column2 = [
-            Card(GREEN, 2),
-            Card(BLACK, 3),
-            Card(BLACK, 5),
-            Card(RED, 5),
-            Card(GREEN, 3),
+            Card(Suit.GREEN, 2),
+            Card(Suit.BLACK, 3),
+            Card(Suit.BLACK, 5),
+            Card(Suit.RED, 5),
+            Card(Suit.GREEN, 3),
         ]
 
         column3 = [
-            Card(GREEN, 1),
-            Card(RED, None),
-            Card(SPECIAL, 1),
-            Card(RED, 1),
-            Card(GREEN, 6),
+            Card(Suit.GREEN, 1),
+            Card(Suit.RED, None),
+            Card(Suit.SPECIAL, 1),
+            Card(Suit.RED, 1),
+            Card(Suit.GREEN, 6),
         ]
 
         column4 = [
-            Card(GREEN, 4),
-            Card(RED, 8),
-            Card(RED, 2),
-            Card(RED, 6),
-            Card(BLACK, None),
+            Card(Suit.GREEN, 4),
+            Card(Suit.RED, 8),
+            Card(Suit.RED, 2),
+            Card(Suit.RED, 6),
+            Card(Suit.BLACK, None),
         ]
 
         column5 = [
-            Card(GREEN, 5),
-            Card(BLACK, 4),
-            Card(RED, None),
-            Card(BLACK, 1),
-            Card(BLACK, 8),
+            Card(Suit.GREEN, 5),
+            Card(Suit.BLACK, 4),
+            Card(Suit.RED, None),
+            Card(Suit.BLACK, 1),
+            Card(Suit.BLACK, 8),
         ]
 
         column6 = [
-            Card(GREEN, None),
-            Card(RED, 3),
-            Card(GREEN, None),
-            Card(BLACK, 2),
-            Card(GREEN, None),
+            Card(Suit.GREEN, None),
+            Card(Suit.RED, 3),
+            Card(Suit.GREEN, None),
+            Card(Suit.BLACK, 2),
+            Card(Suit.GREEN, None),
         ]
 
         column7 = [
-            Card(BLACK, 9),
-            Card(BLACK, None),
-            Card(GREEN, None),
-            Card(GREEN, 9),
-            Card(BLACK, None),
+            Card(Suit.BLACK, 9),
+            Card(Suit.BLACK, None),
+            Card(Suit.GREEN, None),
+            Card(Suit.GREEN, 9),
+            Card(Suit.BLACK, None),
         ]
 
         columns = [
@@ -364,7 +389,7 @@ if __name__ == "__main__":
         print(state)
 
         # XXX: This is an invalid game state, for printing demo only
-        progressed_columns = [
+        progressed_columns: List[List[Card]] = [
             [],
             column1[:2],
             column2,
@@ -375,18 +400,18 @@ if __name__ == "__main__":
             column7[:2],
         ]
         progressed_state = GameState(
-            progressed_columns, [Card(FACE_DOWN, None)], [1, 2, 3, 4]
+            progressed_columns, [Card(Suit.FACE_DOWN, None)], [1, 2, 3, 4]
         )
         print(progressed_state)
 
     import unittest
 
     class CardTest(unittest.TestCase):
-        def test_hashable(self):
-            a = Card(RED, 1)
-            b = Card(RED, 1)
-            c = Card(GREEN, 1)
-            d = Card(RED, 2)
+        def test_hashable(self) -> None:
+            a = Card(Suit.RED, 1)
+            b = Card(Suit.RED, 1)
+            c = Card(Suit.GREEN, 1)
+            d = Card(Suit.RED, 2)
 
             self.assertFalse(a is b)
             self.assertTrue(a == b)
@@ -399,15 +424,15 @@ if __name__ == "__main__":
             self.assertFalse(hash(a) == hash(d))
 
     class GameStateTest(unittest.TestCase):
-        def test_move_to_top_right(self):
+        def test_move_to_top_right(self) -> None:
             result = [
                 GameState(
                     [
                         [
-                            Card(RED, 9),
-                            Card(GREEN, 9),
-                            Card(BLACK, 9),
-                            Card(SPECIAL, 1),
+                            Card(Suit.RED, 9),
+                            Card(Suit.GREEN, 9),
+                            Card(Suit.BLACK, 9),
+                            Card(Suit.SPECIAL, 1),
                         ],
                         [],
                         [],
@@ -417,7 +442,7 @@ if __name__ == "__main__":
                         [],
                         [],
                     ],
-                    [Card(FACE_DOWN, None)] * 3,
+                    [Card(Suit.FACE_DOWN, None)] * 3,
                     [0, 8, 8, 8],
                 )
             ]
@@ -430,23 +455,23 @@ if __name__ == "__main__":
 
             self.assertTrue(state.is_solved())
 
-        def test_move_storage_to_top_right(self):
+        def test_move_storage_to_top_right(self) -> None:
             result = [
                 GameState(
                     [
-                        [Card(RED, 8)],
-                        [Card(RED, None)],
-                        [Card(RED, None)],
-                        [Card(RED, None)],
-                        [Card(RED, None)],
+                        [Card(Suit.RED, 8)],
+                        [Card(Suit.RED, None)],
+                        [Card(Suit.RED, None)],
+                        [Card(Suit.RED, None)],
+                        [Card(Suit.RED, None)],
                         [],
                         [],
                         [],
                     ],
                     [
-                        Card(RED, 9),
-                        Card(FACE_DOWN, None),
-                        Card(FACE_DOWN, None),
+                        Card(Suit.RED, 9),
+                        Card(Suit.FACE_DOWN, None),
+                        Card(Suit.FACE_DOWN, None),
                     ],
                     [1, 7, 9, 9],
                 )
@@ -461,13 +486,13 @@ if __name__ == "__main__":
             for s in result:
                 print(s)
 
-        def test_hashable(self):
-            empty_columns = [[] for _ in range(8)]
+        def test_hashable(self) -> None:
+            empty_columns: List[List[Card]] = [[] for _ in range(8)]
             a = copy.deepcopy(empty_columns)
-            a[0].append(Card(RED, 1))
+            a[0].append(Card(Suit.RED, 1))
 
             b = copy.deepcopy(empty_columns)
-            b[1].append(Card(RED, 1))
+            b[1].append(Card(Suit.RED, 1))
 
             c = copy.deepcopy(b)
 
@@ -481,19 +506,27 @@ if __name__ == "__main__":
             self.assertEqual(state_b, state_c)
             self.assertEqual(hash(state_b), hash(state_c))
 
-        def test_can_move_top_left_to_column(self):
+        def test_can_move_top_left_to_column(self) -> None:
             state = GameState(
                 [
-                    [Card(RED, None), Card(RED, None), Card(RED, None)],
-                    [Card(RED, 9)],
-                    [Card(GREEN, 9)],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                    ],
+                    [Card(Suit.RED, 9)],
+                    [Card(Suit.GREEN, 9)],
                     [],
                     [],
                     [],
                     [],
                     [],
                 ],
-                [Card(FACE_DOWN, None), Card(GREEN, None), Card(RED, 8)],
+                [
+                    Card(Suit.FACE_DOWN, None),
+                    Card(Suit.GREEN, None),
+                    Card(Suit.RED, 8),
+                ],
                 [9, 8, 9, 9],
             )
 
@@ -516,36 +549,40 @@ if __name__ == "__main__":
             state.move_top_left_to_column(2, 2)
             self.assertEqual(2, len(state.top_left_storage))
             self.assertEqual(2, len(state.columns[2]))
-            self.assertEqual(Card(RED, 8), state.columns[2][-1])
+            self.assertEqual(Card(Suit.RED, 8), state.columns[2][-1])
 
     class SolitaireTest(unittest.TestCase):
-        def setUp(self):
+        def setUp(self) -> None:
             self.solved = GameState(
                 [[], [], [], [], [], [], [], []],
-                [Card(FACE_DOWN, None)] * 3,
+                [Card(Suit.FACE_DOWN, None)] * 3,
                 [1, 9, 9, 9],
             )
             self.almost_solved = GameState(
-                [[Card(RED, 9)], [], [], [], [], [], [], []],
-                [Card(FACE_DOWN, None)] * 3,
+                [[Card(Suit.RED, 9)], [], [], [], [], [], [], []],
+                [Card(Suit.FACE_DOWN, None)] * 3,
                 [1, 8, 9, 9],
             )
 
-        def test_is_solved(self):
+        def test_is_solved(self) -> None:
             self.assertTrue(self.solved.is_solved())
 
             # The base case
             game = Game()
             result = game.play(self.solved)
+            self.assertIsNotNone(result)
+            assert result is not None  # for mypy type narrowing
             self.assertEqual(1, len(result))
             self.assertEqual(self.solved, result[0])
 
-        def test_move_to_top_right_solve(self):
+        def test_move_to_top_right_solve(self) -> None:
             self.assertFalse(self.almost_solved.is_solved())
 
             # Solved after a single iteration
             game = Game()
             result = game.play(self.almost_solved)
+            self.assertIsNotNone(result)
+            assert result is not None  # for mypy type narrowing
             self.assertEqual(2, len(result))
             self.assertEqual(self.almost_solved, result[0])
             self.assertTrue(result[-1].is_solved())

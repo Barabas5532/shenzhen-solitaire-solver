@@ -4,3 +4,5 @@ black~=22.0
 # Flake8 says that the error codes are stable across minor releases
 # https://flake8.pycqa.org/en/latest/faq.html#why-does-flake8-use-ranges-for-its-dependencies
 flake8~=4.0
+# mypy doesn't provide a compatiblity strategy, let's pin it to an exact version
+mypy==0.961
