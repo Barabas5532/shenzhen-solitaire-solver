@@ -193,6 +193,45 @@ class GameState:
         self.top_left_storage.append(self.columns[column_index].pop())
         assert len(self.top_left_storage) <= 3
 
+    def can_collect_dragons(self, suit: Suit) -> bool:
+        if 3 == len(
+            list(
+                filter(
+                    lambda card: not (
+                        card.suit == suit and card.value is None
+                    ),
+                    self.top_left_storage,
+                )
+            )
+        ):
+            return False
+
+        free_dragon_count = 0
+        for column in self.columns:
+            for card in reversed(column):
+                if card.suit == suit and card.value is None:
+                    free_dragon_count += 1
+                else:
+                    # check next column
+                    break
+
+        for card in self.top_left_storage:
+            if card.suit == suit and card.value is None:
+                free_dragon_count += 1
+
+        return free_dragon_count == 4
+
+    def collect_dragons(self, suit: Suit) -> None:
+        # This is always called after checking if this move is valid.
+        # Therefore, we can just remove all the dragons and add a face down
+        # card to the top left.
+        for column in self.columns:
+            column[:] = [card for card in column if not card.suit == suit and card.value is None]
+
+        self.top_left_storage = [card for card in self.top_left_storage if not card.suit == suit and card.value is None]
+        self.top_left_storage.append(Card(Suit.FACE_DOWN, None))
+        assert len(self.top_left_storage) <= 3
+
     def __str__(self) -> str:
         top_row = "========== GAME STATE =========\n"
         for i, card in enumerate(self.top_left_storage):
@@ -237,7 +276,6 @@ class GameState:
             tuple(self.top_right_storage),
         )
 
-    # TODO same bug as __eq__ above
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, type(self)):
             assert False
@@ -295,6 +333,13 @@ class Game:
                 return [state, *result]
             # We have to make this move, the game won't let us do anything
             # else. If it results in a losing game, then we need to backtrack
+
+            # TODO there might be some edge cases where the game doesn't force
+            # you to make this move. Those could be the states where this move
+            # actually makes you lose the game.
+            #
+            # E.G. when moving the card would mean a free columns stays blocked
+            # by another card.
             return None
 
         # test out every possible move. The list of all moves are:
@@ -322,6 +367,12 @@ class Game:
                 # else we keep looping to try all the possible moves
 
         # collect dragons
+        for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
+            if state_copy.can_collect_dragons(suit):
+                state_copy.collect_dragons(suit)
+                result = self.play(state_copy)
+                if result is not None:
+                    return [state, *result]
 
         # move any set of cards from any column to any other column
 
@@ -631,6 +682,93 @@ if __name__ == "__main__":
 
             # Now that the top left is filled up, no cards can be moved there
             self.assertFalse(state.can_move_column_to_top_left(1))
+
+        def test_collect_dragons(self) -> None:
+            state = GameState(
+                (
+                    [
+                        Card(Suit.GREEN, None),
+                    ],
+                    [
+                        Card(Suit.GREEN, None),
+                    ],
+                    [
+                        Card(Suit.GREEN, None),
+                    ],
+                    [
+                        Card(Suit.GREEN, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.BLACK, None),
+                        Card(Suit.BLACK, None),
+                    ],
+                    [
+                        Card(Suit.BLACK, None),
+                        Card(Suit.RED, 9),
+                    ],
+                    [],
+                ),
+                [
+                    Card(Suit.RED, None),
+                ],
+                [1, 8, 9, 9],
+            )
+
+            self.assertTrue(state.can_collect_dragons(Suit.GREEN))
+            self.assertTrue(state.can_collect_dragons(Suit.RED))
+            self.assertFalse(state.can_collect_dragons(Suit.BLACK))
+
+            state.collect_dragons(Suit.GREEN)
+            self.assertEqual(0, len(state.columns[0]))
+            self.assertEqual(0, len(state.columns[1]))
+            self.assertEqual(0, len(state.columns[2]))
+            self.assertEqual(0, len(state.columns[3]))
+            self.assertIn(Card(Suit.FACE_DOWN, None), state.top_left_storage)
+            self.assertIn(Card(Suit.RED, None), state.top_left_storage)
+            self.assertEqual(2, len(state.top_left_storage))
+
+        def test_can_not_collect_dragons_when_storage_full(self) -> None:
+            state = GameState(
+                (
+                    [
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                    ],
+                    [],
+                    [
+                        Card(Suit.BLACK, None),
+                        Card(Suit.BLACK, None),
+                    ],
+                    [
+                        Card(Suit.BLACK, None),
+                    ],
+                    [],
+                ),
+                [
+                    Card(Suit.FACE_DOWN, None),
+                    Card(Suit.RED, 9),
+                    Card(Suit.BLACK, None),
+                ],
+                [1, 8, 9, 9],
+            )
+
+            # We can't collect dragond if the top left storage is full
+            self.assertFalse(state.can_collect_dragons(Suit.RED))
+            # Except if the blocking card is a dragon that we wanted to collect
+            self.assertTrue(state.can_collect_dragons(Suit.BLACK))
 
     class SolitaireTest(unittest.TestCase):
         def setUp(self) -> None:
