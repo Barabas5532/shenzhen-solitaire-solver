@@ -183,6 +183,16 @@ class GameState:
             self.top_left_storage.pop(top_left_index)
         )
 
+    def can_move_column_to_top_left(self, column_index: int) -> bool:
+        return (
+            len(self.columns[column_index]) != 0
+            and len(self.top_left_storage) < 3
+        )
+
+    def move_column_to_top_left(self, column_index: int) -> None:
+        self.top_left_storage.append(self.columns[column_index].pop())
+        assert len(self.top_left_storage) <= 3
+
     def __str__(self) -> str:
         top_row = "========== GAME STATE =========\n"
         for i, card in enumerate(self.top_left_storage):
@@ -303,6 +313,13 @@ class Game:
                     # else we keep looping to try all the possible moves
 
         # move a card from the centre to the storage area
+        for column_index in range(8):
+            if state_copy.can_move_column_to_top_left(column_index):
+                state_copy.move_column_to_top_left(column_index)
+                result = self.play(state_copy)
+                if result is not None:
+                    return [state, *result]
+                # else we keep looping to try all the possible moves
 
         # collect dragons
 
@@ -561,6 +578,59 @@ if __name__ == "__main__":
             self.assertEqual(2, len(state.top_left_storage))
             self.assertEqual(2, len(state.columns[2]))
             self.assertEqual(Card(Suit.RED, 8), state.columns[2][-1])
+
+        def test_can_move_column_to_top_left(self) -> None:
+            state = GameState(
+                (
+                    [
+                        Card(Suit.RED, 9),
+                    ],
+                    [
+                        Card(Suit.RED, 8),
+                    ],
+                    [
+                        Card(Suit.RED, 7),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                    ],
+                    [],
+                    [],
+                    [],
+                    [],
+                ),
+                [
+                    Card(Suit.FACE_DOWN, None),
+                    Card(Suit.FACE_DOWN, None),
+                ],
+                [9, 6, 9, 9],
+            )
+
+            # Given a single empty slot in the top left
+            self.assertEqual(2, len(state.top_left_storage))
+
+            # Can't move if there is not any cards in the column
+            self.assertFalse(state.can_move_column_to_top_left(7))
+
+            # Can move if there is any card in the column
+            self.assertTrue(state.can_move_column_to_top_left(0))
+            self.assertTrue(state.can_move_column_to_top_left(1))
+            self.assertTrue(state.can_move_column_to_top_left(2))
+            self.assertTrue(state.can_move_column_to_top_left(3))
+
+            # Moving a card causes it to disappear from the column
+            moved_card = state.columns[0][-1]
+            state.move_column_to_top_left(0)
+            self.assertEqual(0, len(state.columns[0]))
+            # The top left storage should be filled up
+            self.assertEqual(3, len(state.top_left_storage))
+            # The moved card should appear in the top left
+            self.assertIn(moved_card, state.top_left_storage)
+
+            # Now that the top left is filled up, no cards can be moved there
+            self.assertFalse(state.can_move_column_to_top_left(1))
 
     class SolitaireTest(unittest.TestCase):
         def setUp(self) -> None:
