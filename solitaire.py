@@ -61,17 +61,28 @@ class Card:
         if not isinstance(other, type(self)):
             raise TypeError
 
+        if self.suit < other.suit:
+            return True
+
+        if self.suit > other.suit:
+            return False
+
+        assert self.suit == other.suit
+
+        # None value sorts lower than any other value
         if self.value is None and other.value is not None:
             return True
 
-        if self.value is None:
+        # Two None values are equal
+        if self.value is None and other.value is None:
             return False
+
+        assert self.value is not None
 
         if other.value is None:
             return False
 
-        if self.suit < other.suit:
-            return True
+        assert other.value is not None
 
         if self.value < other.value:
             return True
@@ -332,7 +343,7 @@ class GameState:
 
     def __str__(self) -> str:
         top_row = "========== GAME STATE =========\n"
-        for i, card in enumerate(self.top_left_storage):
+        for i, card in enumerate(sorted(self.top_left_storage)):
             top_row += str(card)
             top_row += " "
 
@@ -388,6 +399,7 @@ class GameState:
 class Game:
     def __init__(self) -> None:
         self.seen_states: Set[GameState] = set()
+        self.maximum_depth = 0
 
     def already_seen(self, state: GameState) -> bool:
         if state in self.seen_states:
@@ -396,7 +408,7 @@ class Game:
         self.seen_states.add(state)
         return False
 
-    def play(self, state: GameState) -> Optional[List[GameState]]:
+    def play(self, state: GameState, depth: int = 1) -> Optional[List[GameState]]:
         # the game forces us to move any cards to the top right storage if it's
         # a valid move
         #
@@ -414,6 +426,9 @@ class Game:
         #
 
         # print(f"play called with state: {state}")
+        if depth > self.maximum_depth:
+            print(f"new maximum recursion depth: {depth}")
+            self.maximum_depth = depth
 
         # If we have made a loop of moves, terminate. This prevents following
         # the cycle infinitely
@@ -433,7 +448,8 @@ class Game:
 
         if state_copy.can_move_to_top_right_storage():
             state_copy.move_to_top_right_storage()
-            result = self.play(state_copy)
+            print(f'card moved to top right. state before: {state} after: {state_copy}')
+            result = self.play(state_copy, depth+1)
             if result is not None:
                 return [state, *result]
             # We have to make this move, the game won't let us do anything
@@ -457,32 +473,35 @@ class Game:
                     state_copy.move_top_left_to_column(
                         top_left_index, column_index
                     )
-                    result = self.play(state_copy)
+                    result = self.play(state_copy, depth+1)
                     if result is not None:
                         return [state, *result]
                     # else we keep looping to try all the possible moves
+                    state_copy = copy.deepcopy(state)
 
         # move a card from the centre to the storage area
         for column_index in range(8):
             if state_copy.can_move_column_to_top_left(column_index):
                 state_copy.move_column_to_top_left(column_index)
-                result = self.play(state_copy)
+                result = self.play(state_copy, depth+1)
                 if result is not None:
                     return [state, *result]
                 # else we keep looping to try all the possible moves
+                state_copy = copy.deepcopy(state)
 
         # collect dragons
         for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
             if state_copy.can_collect_dragons(suit):
                 state_copy.collect_dragons(suit)
-                result = self.play(state_copy)
+                result = self.play(state_copy, depth+1)
                 if result is not None:
                     return [state, *result]
+                state_copy = copy.deepcopy(state)
 
         # move any set of cards from any column to any other column
         for from_column_index in range(8):
             for to_column_index in range(8):
-                for stack_size in range(1, 9 + 1):
+                for stack_size in reversed(range(1, 9 + 1)):
                     if state_copy.can_move_column_to_other_column(
                         from_column_index=from_column_index,
                         to_column_index=to_column_index,
@@ -493,9 +512,11 @@ class Game:
                             to_column_index=to_column_index,
                             stack_size=stack_size,
                         )
-                        result = self.play(state_copy)
+                        result = self.play(state_copy, depth+1)
                         if result is not None:
                             return [state, *result]
+
+                        state_copy = copy.deepcopy(state)
 
         return None
 
@@ -507,106 +528,6 @@ if __name__ == "__main__":
         print(Card(suit=Suit.BLACK, value=0))
         print(Card(suit=Suit.GREEN, value=None))
         print(Card(suit=Suit.SPECIAL, value=1))
-
-        # From https://shenzhen-io.fandom.com/wiki/Shenzhen_Solitaire
-        # https://shenzhen-io.fandom.com/wiki/File:Solitaire.png
-        column0 = [
-            Card(Suit.BLACK, None),
-            Card(Suit.RED, None),
-            Card(Suit.BLACK, 7),
-            Card(Suit.RED, 7),
-            Card(Suit.BLACK, 6),
-        ]
-
-        column1 = [
-            Card(Suit.RED, None),
-            Card(Suit.RED, 9),
-            Card(Suit.GREEN, 8),
-            Card(Suit.GREEN, 7),
-            Card(Suit.RED, 4),
-        ]
-
-        column2 = [
-            Card(Suit.GREEN, 2),
-            Card(Suit.BLACK, 3),
-            Card(Suit.BLACK, 5),
-            Card(Suit.RED, 5),
-            Card(Suit.GREEN, 3),
-        ]
-
-        column3 = [
-            Card(Suit.GREEN, 1),
-            Card(Suit.RED, None),
-            Card(Suit.SPECIAL, 1),
-            Card(Suit.RED, 1),
-            Card(Suit.GREEN, 6),
-        ]
-
-        column4 = [
-            Card(Suit.GREEN, 4),
-            Card(Suit.RED, 8),
-            Card(Suit.RED, 2),
-            Card(Suit.RED, 6),
-            Card(Suit.BLACK, None),
-        ]
-
-        column5 = [
-            Card(Suit.GREEN, 5),
-            Card(Suit.BLACK, 4),
-            Card(Suit.RED, None),
-            Card(Suit.BLACK, 1),
-            Card(Suit.BLACK, 8),
-        ]
-
-        column6 = [
-            Card(Suit.GREEN, None),
-            Card(Suit.RED, 3),
-            Card(Suit.GREEN, None),
-            Card(Suit.BLACK, 2),
-            Card(Suit.GREEN, None),
-        ]
-
-        column7 = [
-            Card(Suit.BLACK, 9),
-            Card(Suit.BLACK, None),
-            Card(Suit.GREEN, None),
-            Card(Suit.GREEN, 9),
-            Card(Suit.BLACK, None),
-        ]
-
-        columns = (
-            column0,
-            column1,
-            column2,
-            column3,
-            column4,
-            column5,
-            column6,
-            column7,
-        )
-
-        state = GameState(columns)
-        print(state)
-
-        game = Game()
-        solution = game.play(state)
-        print(f"solution: {solution}")
-
-        # XXX: This is an invalid game state, for printing demo only
-        progressed_columns: Columns = (
-            [],
-            column1[:2],
-            column2,
-            column3[:2],
-            column4[:1],
-            [],
-            column6,
-            column7[:2],
-        )
-        progressed_state = GameState(
-            progressed_columns, [Card(Suit.FACE_DOWN, None)], [1, 2, 3, 4]
-        )
-        print(progressed_state)
 
     import unittest
 
@@ -626,6 +547,64 @@ if __name__ == "__main__":
 
             self.assertFalse(a == d)
             self.assertFalse(hash(a) == hash(d))
+
+        def test_sorting(self) -> None:
+            test_data = [
+                (
+                    [
+                        Card(Suit.RED, 5),
+                        Card(Suit.RED, 4),
+                    ],
+                    [
+                        Card(Suit.RED, 4),
+                        Card(Suit.RED, 5),
+                    ],
+                ),
+                (
+                    [
+                        Card(Suit.RED, 5),
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, 5),
+                    ],
+                ),
+                (
+                    [
+                        Card(Suit.RED, 5),
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, 5),
+                    ],
+                ),
+                (
+                    [
+                        Card(Suit.BLACK, 5),
+                        Card(Suit.RED, 5),
+                    ],
+                    [
+                        Card(Suit.RED, 5),
+                        Card(Suit.BLACK, 5),
+                    ],
+                ),
+                (
+                    [
+                        Card(Suit.BLACK, None),
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.BLACK, None),
+                    ],
+                ),
+            ]
+
+            for test_case in test_data:
+                self.assertListEqual(sorted(test_case[0]), test_case[1])
+
 
     class GameStateTest(unittest.TestCase):
         def test_move_to_top_right(self) -> None:
