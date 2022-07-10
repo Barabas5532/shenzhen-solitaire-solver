@@ -57,6 +57,12 @@ class Card:
 
         return (self.suit, self.value) == (other.suit, other.value)
 
+    def is_dragon(self, suit: Optional[Suit] = None) -> bool:
+        if suit is None:
+            return self.value is None
+
+        return self.suit == suit and self.value is None
+
 
 class CardPosition:
     def __init__(self, location: CardLocation, index: int):
@@ -168,9 +174,10 @@ class GameState:
 
         target_card = self.columns[column_index][-1]
         # can't move on top of dragon
-        if target_card.value is None:
+        if target_card.is_dragon():
             return False
 
+        assert target_card.value is not None
         return (
             card_to_move.suit != target_card.suit
             and card_to_move.value == target_card.value - 1
@@ -197,9 +204,7 @@ class GameState:
         if 3 == len(
             list(
                 filter(
-                    lambda card: not (
-                        card.suit == suit and card.value is None
-                    ),
+                    lambda card: not (card.is_dragon(suit)),
                     self.top_left_storage,
                 )
             )
@@ -209,14 +214,14 @@ class GameState:
         free_dragon_count = 0
         for column in self.columns:
             for card in reversed(column):
-                if card.suit == suit and card.value is None:
+                if card.is_dragon(suit):
                     free_dragon_count += 1
                 else:
                     # check next column
                     break
 
         for card in self.top_left_storage:
-            if card.suit == suit and card.value is None:
+            if card.is_dragon(suit):
                 free_dragon_count += 1
 
         return free_dragon_count == 4
@@ -226,9 +231,11 @@ class GameState:
         # Therefore, we can just remove all the dragons and add a face down
         # card to the top left.
         for column in self.columns:
-            column[:] = [card for card in column if not card.suit == suit and card.value is None]
+            column[:] = [card for card in column if not card.is_dragon(suit)]
 
-        self.top_left_storage = [card for card in self.top_left_storage if not card.suit == suit and card.value is None]
+        self.top_left_storage = [
+            card for card in self.top_left_storage if not card.is_dragon(suit)
+        ]
         self.top_left_storage.append(Card(Suit.FACE_DOWN, None))
         assert len(self.top_left_storage) <= 3
 
