@@ -341,6 +341,9 @@ class GameState:
         del from_column[-stack_size:]
         to_column.extend(card_stack)
 
+    def __repr__(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         top_row = "========== GAME STATE =========\n"
         for i, card in enumerate(sorted(self.top_left_storage)):
@@ -379,9 +382,19 @@ class GameState:
         return top_row + "\n" + columns
 
     def _tuple(self) -> Tuple:
+        print(self)
+        tuple_column = [tuple(column) for column in self.columns]
+
+        tuple_column = sorted(
+            tuple_column,
+            key=lambda x: x[0] if len(x) != 0 else Card(Suit.SPECIAL, None),
+        )
+
         return (
             tuple(sorted(self.top_left_storage)),
-            tuple([tuple(column) for column in self.columns]),
+            # columns are sorted by the bottom card to try to prevent useless
+            # moves moving stacks to another empty column
+            tuple(tuple_column),
             tuple(self.top_right_storage),
         )
 
@@ -408,7 +421,9 @@ class Game:
         self.seen_states.add(state)
         return False
 
-    def play(self, state: GameState, depth: int = 1) -> Optional[List[GameState]]:
+    def play(
+        self, state: GameState, depth: int = 1
+    ) -> Optional[List[GameState]]:
         # the game forces us to move any cards to the top right storage if it's
         # a valid move
         #
@@ -448,8 +463,10 @@ class Game:
 
         if state_copy.can_move_to_top_right_storage():
             state_copy.move_to_top_right_storage()
-            print(f'card moved to top right. state before: {state} after: {state_copy}')
-            result = self.play(state_copy, depth+1)
+            print(
+                f"card moved to top right. state before: {state} after: {state_copy}"
+            )
+            result = self.play(state_copy, depth + 1)
             if result is not None:
                 return [state, *result]
             # We have to make this move, the game won't let us do anything
@@ -473,7 +490,7 @@ class Game:
                     state_copy.move_top_left_to_column(
                         top_left_index, column_index
                     )
-                    result = self.play(state_copy, depth+1)
+                    result = self.play(state_copy, depth + 1)
                     if result is not None:
                         return [state, *result]
                     # else we keep looping to try all the possible moves
@@ -483,7 +500,7 @@ class Game:
         for column_index in range(8):
             if state_copy.can_move_column_to_top_left(column_index):
                 state_copy.move_column_to_top_left(column_index)
-                result = self.play(state_copy, depth+1)
+                result = self.play(state_copy, depth + 1)
                 if result is not None:
                     return [state, *result]
                 # else we keep looping to try all the possible moves
@@ -493,7 +510,7 @@ class Game:
         for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
             if state_copy.can_collect_dragons(suit):
                 state_copy.collect_dragons(suit)
-                result = self.play(state_copy, depth+1)
+                result = self.play(state_copy, depth + 1)
                 if result is not None:
                     return [state, *result]
                 state_copy = copy.deepcopy(state)
@@ -512,7 +529,7 @@ class Game:
                             to_column_index=to_column_index,
                             stack_size=stack_size,
                         )
-                        result = self.play(state_copy, depth+1)
+                        result = self.play(state_copy, depth + 1)
                         if result is not None:
                             return [state, *result]
 
@@ -604,7 +621,6 @@ if __name__ == "__main__":
 
             for test_case in test_data:
                 self.assertListEqual(sorted(test_case[0]), test_case[1])
-
 
     class GameStateTest(unittest.TestCase):
         def test_move_to_top_right(self) -> None:
