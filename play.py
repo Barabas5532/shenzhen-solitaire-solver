@@ -146,6 +146,66 @@ states = [
             ],
         ),
     ),
+    GameState(
+        (
+            [
+                Card(Suit.BLACK, 1),
+                Card(Suit.GREEN, 4),
+                Card(Suit.BLACK, 5),
+                Card(Suit.RED, None),
+                Card(Suit.RED, 7),
+            ],
+            [
+                Card(Suit.RED, 4),
+                Card(Suit.BLACK, 4),
+                Card(Suit.GREEN, 6),
+                Card(Suit.GREEN, None),
+                Card(Suit.GREEN, 3),
+            ],
+            [
+                Card(Suit.RED, None),
+                Card(Suit.BLACK, 7),
+                Card(Suit.RED, None),
+                Card(Suit.SPECIAL, 1),
+                Card(Suit.RED, 9),
+            ],
+            [
+                Card(Suit.GREEN, None),
+                Card(Suit.GREEN, 1),
+                Card(Suit.GREEN, None),
+                Card(Suit.GREEN, None),
+                Card(Suit.RED, 3),
+            ],
+            [
+                Card(Suit.BLACK, 3),
+                Card(Suit.BLACK, 2),
+                Card(Suit.GREEN, 5),
+                Card(Suit.RED, 1),
+                Card(Suit.GREEN, 7),
+            ],
+            [
+                Card(Suit.BLACK, None),
+                Card(Suit.RED, 8),
+                Card(Suit.RED, 2),
+                Card(Suit.GREEN, 2),
+                Card(Suit.GREEN, 8),
+            ],
+            [
+                Card(Suit.RED, None),
+                Card(Suit.GREEN, 9),
+                Card(Suit.BLACK, None),
+                Card(Suit.BLACK, 9),
+                Card(Suit.RED, 5),
+            ],
+            [
+                Card(Suit.BLACK, None),
+                Card(Suit.BLACK, None),
+                Card(Suit.RED, 6),
+                Card(Suit.BLACK, 8),
+                Card(Suit.BLACK, 6),
+            ],
+        ),
+    ),
 ]
 print(states)
 
