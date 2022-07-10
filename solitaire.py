@@ -63,6 +63,20 @@ class Card:
 
         return self.suit == suit and self.value is None
 
+    def can_be_moved_on_top_of(self, other: "Card") -> bool:
+        assert self.suit in [Suit.BLACK, Suit.GREEN, Suit.RED]
+
+        # can't move on top of dragon
+        if other.is_dragon():
+            return False
+
+        # dragon can't go on top of any other card
+        if self.is_dragon():
+            return False
+
+        assert other.value is not None
+        return self.suit != other.suit and self.value == other.value - 1
+
 
 class CardPosition:
     def __init__(self, location: CardLocation, index: int):
@@ -173,15 +187,10 @@ class GameState:
             return True
 
         target_card = self.columns[column_index][-1]
-        # can't move on top of dragon
         if target_card.is_dragon():
             return False
 
-        assert target_card.value is not None
-        return (
-            card_to_move.suit != target_card.suit
-            and card_to_move.value == target_card.value - 1
-        )
+        return card_to_move.can_be_moved_on_top_of(target_card)
 
     def move_top_left_to_column(
         self, top_left_index: int, column_index: int
@@ -238,6 +247,64 @@ class GameState:
         ]
         self.top_left_storage.append(Card(Suit.FACE_DOWN, None))
         assert len(self.top_left_storage) <= 3
+
+    def _get_column_stack_size(self, column_index: int) -> int:
+        if 0 == len(self.columns[column_index]):
+            return 0
+
+        stack_size = 1
+
+        column = self.columns[column_index]
+        for i, card in enumerate(column):
+            if i + 1 == len(column):
+                break
+
+            next_card = column[i + 1]
+
+            if next_card.can_be_moved_on_top_of(card):
+                stack_size += 1
+            else:
+                stack_size = 1
+
+        return stack_size
+
+    def can_move_column_to_other_column(
+        self,
+        *,
+        from_column_index: int,
+        to_column_index: int,
+        stack_size: int,
+    ) -> bool:
+        actual_stack_size = self._get_column_stack_size(from_column_index)
+
+        # TODO this statement is redundant, stack size is always greater than
+        #      zero. Remove once we have enough test coverage
+        if actual_stack_size == 0:
+            return False
+
+        if stack_size > actual_stack_size:
+            return False
+
+        if len(self.columns[to_column_index]) == 0:
+            return True
+
+        stack_first_card = self.columns[from_column_index][-stack_size]
+        target_card = self.columns[to_column_index][-1]
+        return stack_first_card.can_be_moved_on_top_of(target_card)
+
+    def move_column_to_other_column(
+        self,
+        *,
+        from_column_index: int,
+        to_column_index: int,
+        stack_size: int,
+    ) -> None:
+        from_column = self.columns[from_column_index]
+        to_column = self.columns[to_column_index]
+
+        card_stack = from_column[-stack_size:]
+        del from_column[-stack_size:]
+        to_column.extend(card_stack)
 
     def __str__(self) -> str:
         top_row = "========== GAME STATE =========\n"
@@ -785,6 +852,107 @@ if __name__ == "__main__":
             self.assertEqual(3, len(state.top_left_storage))
             for column in state.columns:
                 self.assertNotIn(Card(Suit.BLACK, None), column)
+
+        def test_move_column_to_other_column(self) -> None:
+            state = GameState(
+                (
+                    [
+                        Card(Suit.RED, 9),
+                    ],
+                    [
+                        Card(Suit.GREEN, 8),
+                        Card(Suit.BLACK, 7),
+                    ],
+                    [
+                        Card(Suit.RED, 8),
+                    ],
+                    [
+                        Card(Suit.BLACK, 9),
+                        Card(Suit.GREEN, 9),
+                        Card(Suit.BLACK, 8),
+                    ],
+                    [],
+                    [],
+                    [],
+                    [],
+                ),
+                [
+                    Card(Suit.FACE_DOWN, None),
+                    Card(Suit.FACE_DOWN, None),
+                    Card(Suit.FACE_DOWN, None),
+                ],
+                [1, 7, 7, 6],
+            )
+
+            # Can't move if the source column is empty
+            self.assertFalse(
+                state.can_move_column_to_other_column(
+                    from_column_index=4,
+                    to_column_index=7,
+                    stack_size=1,
+                )
+            )
+
+            # Can't move if the source column stack size is less than the
+            # requested stack size
+            self.assertFalse(
+                state.can_move_column_to_other_column(
+                    from_column_index=0,
+                    to_column_index=7,
+                    stack_size=2,
+                )
+            )
+
+            # Can move to an empty column
+            self.assertTrue(
+                state.can_move_column_to_other_column(
+                    from_column_index=0,
+                    to_column_index=7,
+                    stack_size=1,
+                )
+            )
+            state_copy = copy.deepcopy(state)
+            card_to_move = state_copy.columns[0][-1]
+            state_copy.move_column_to_other_column(
+                from_column_index=0,
+                to_column_index=7,
+                stack_size=1,
+            )
+            self.assertEqual(0, len(state_copy.columns[0]))
+            self.assertNotIn(card_to_move, state_copy.columns[0])
+            self.assertEqual(1, len(state_copy.columns[7]))
+            self.assertIn(card_to_move, state_copy.columns[7])
+
+            # Can move stack to empty column
+            self.assertTrue(
+                state.can_move_column_to_other_column(
+                    from_column_index=3,
+                    to_column_index=7,
+                    stack_size=2,
+                )
+            )
+
+            # Can move stack on top of another card
+            self.assertTrue(
+                state.can_move_column_to_other_column(
+                    from_column_index=1,
+                    to_column_index=0,
+                    stack_size=2,
+                )
+            )
+            state_copy = copy.deepcopy(state)
+            cards_to_move = state_copy.columns[1][-2:]
+            state_copy.move_column_to_other_column(
+                from_column_index=1,
+                to_column_index=0,
+                stack_size=2,
+            )
+            self.assertEqual(0, len(state_copy.columns[1]))
+            for card_to_move in cards_to_move:
+                self.assertNotIn(card_to_move, state_copy.columns[1])
+            self.assertEqual(3, len(state_copy.columns[0]))
+            for card_to_move in cards_to_move:
+                self.assertIn(card_to_move, state_copy.columns[0])
 
     class SolitaireTest(unittest.TestCase):
         def setUp(self) -> None:
