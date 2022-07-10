@@ -481,31 +481,6 @@ class Game:
             return None
 
         # test out every possible move. The list of all moves are:
-        # move a card out of the top left storage area to a column
-        for top_left_index in range(3):
-            for column_index in range(8):
-                if state_copy.can_move_top_left_to_column(
-                    top_left_index, column_index
-                ):
-                    state_copy.move_top_left_to_column(
-                        top_left_index, column_index
-                    )
-                    result = self.play(state_copy, depth + 1)
-                    if result is not None:
-                        return [state, *result]
-                    # else we keep looping to try all the possible moves
-                    state_copy = copy.deepcopy(state)
-
-        # move a card from the centre to the storage area
-        for column_index in range(8):
-            if state_copy.can_move_column_to_top_left(column_index):
-                state_copy.move_column_to_top_left(column_index)
-                result = self.play(state_copy, depth + 1)
-                if result is not None:
-                    return [state, *result]
-                # else we keep looping to try all the possible moves
-                state_copy = copy.deepcopy(state)
-
         # collect dragons
         for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
             if state_copy.can_collect_dragons(suit):
@@ -534,6 +509,31 @@ class Game:
                             return [state, *result]
 
                         state_copy = copy.deepcopy(state)
+
+        # move a card from the centre to the storage area
+        for column_index in range(8):
+            if state_copy.can_move_column_to_top_left(column_index):
+                state_copy.move_column_to_top_left(column_index)
+                result = self.play(state_copy, depth + 1)
+                if result is not None:
+                    return [state, *result]
+                # else we keep looping to try all the possible moves
+                state_copy = copy.deepcopy(state)
+
+        # move a card out of the top left storage area to a column
+        for top_left_index in range(3):
+            for column_index in range(8):
+                if state_copy.can_move_top_left_to_column(
+                    top_left_index, column_index
+                ):
+                    state_copy.move_top_left_to_column(
+                        top_left_index, column_index
+                    )
+                    result = self.play(state_copy, depth + 1)
+                    if result is not None:
+                        return [state, *result]
+                    # else we keep looping to try all the possible moves
+                    state_copy = copy.deepcopy(state)
 
         return None
 

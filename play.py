@@ -89,4 +89,4 @@ game = Game()
 solution = game.play(state)
 
 print(f"solution length {len(solution)}")
-print(f"solution: {solution}")
+#print(f"solution: {solution}")
