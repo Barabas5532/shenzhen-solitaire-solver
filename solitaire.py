@@ -382,9 +382,10 @@ class GameState:
         return top_row + "\n" + columns
 
     def _tuple(self) -> Tuple:
-        print(self)
         tuple_column = [tuple(column) for column in self.columns]
 
+        # columns are sorted by the bottom card to try to prevent useless
+        # moves moving stacks to another empty column
         tuple_column = sorted(
             tuple_column,
             key=lambda x: x[0] if len(x) != 0 else Card(Suit.SPECIAL, None),
@@ -392,8 +393,6 @@ class GameState:
 
         return (
             tuple(sorted(self.top_left_storage)),
-            # columns are sorted by the bottom card to try to prevent useless
-            # moves moving stacks to another empty column
             tuple(tuple_column),
             tuple(self.top_right_storage),
         )
@@ -442,16 +441,13 @@ class Game:
 
         # print(f"play called with state: {state}")
         if depth > self.maximum_depth:
-            print(f"new maximum recursion depth: {depth}")
+            if depth % 500 == 0:
+                print(f"new maximum recursion depth: {depth}")
             self.maximum_depth = depth
 
         # If we have made a loop of moves, terminate. This prevents following
         # the cycle infinitely
         if self.already_seen(state):
-            print(
-                f"Cycle prevented. {len(self.seen_states)} states have been visited"
-            )
-            print(state)
             return None
 
         if state.is_solved():
@@ -463,9 +459,6 @@ class Game:
 
         if state_copy.can_move_to_top_right_storage():
             state_copy.move_to_top_right_storage()
-            print(
-                f"card moved to top right. state before: {state} after: {state_copy}"
-            )
             result = self.play(state_copy, depth + 1)
             if result is not None:
                 return [state, *result]
