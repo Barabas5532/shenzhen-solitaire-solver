@@ -739,6 +739,10 @@ if __name__ == "__main__":
             self.assertIn(Card(Suit.RED, None), state.top_left_storage)
             self.assertEqual(2, len(state.top_left_storage))
 
+            state.collect_dragons(Suit.RED)
+            self.assertEqual(0, len(state.columns[4]))
+            self.assertEqual(2, len(state.top_left_storage))
+
         def test_can_not_collect_dragons_when_storage_full(self) -> None:
             state = GameState(
                 (
@@ -776,6 +780,11 @@ if __name__ == "__main__":
             self.assertFalse(state.can_collect_dragons(Suit.RED))
             # Except if the blocking card is a dragon that we wanted to collect
             self.assertTrue(state.can_collect_dragons(Suit.BLACK))
+
+            state.collect_dragons(Suit.BLACK)
+            self.assertEqual(3, len(state.top_left_storage))
+            for column in state.columns:
+                self.assertNotIn(Card(Suit.BLACK, None), column)
 
     class SolitaireTest(unittest.TestCase):
         def setUp(self) -> None:
