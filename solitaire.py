@@ -57,6 +57,27 @@ class Card:
 
         return (self.suit, self.value) == (other.suit, other.value)
 
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            raise TypeError
+
+        if self.value is None and other.value is not None:
+            return True
+
+        if self.value is None:
+            return False
+
+        if other.value is None:
+            return False
+
+        if self.suit < other.suit:
+            return True
+
+        if self.value < other.value:
+            return True
+
+        return False
+
     def is_dragon(self, suit: Optional[Suit] = None) -> bool:
         if suit is None:
             return self.value is None
@@ -64,6 +85,9 @@ class Card:
         return self.suit == suit and self.value is None
 
     def can_be_moved_on_top_of(self, other: "Card") -> bool:
+        if Suit.SPECIAL in {self.suit, other.suit}:
+            return False
+
         assert self.suit in [Suit.BLACK, Suit.GREEN, Suit.RED]
 
         # can't move on top of dragon
@@ -345,7 +369,7 @@ class GameState:
 
     def _tuple(self) -> Tuple:
         return (
-            tuple(self.top_left_storage),
+            tuple(sorted(self.top_left_storage)),
             tuple([tuple(column) for column in self.columns]),
             tuple(self.top_right_storage),
         )
@@ -389,12 +413,19 @@ class Game:
         #      them there.
         #
 
+        # print(f"play called with state: {state}")
+
         # If we have made a loop of moves, terminate. This prevents following
         # the cycle infinitely
         if self.already_seen(state):
+            print(
+                f"Cycle prevented. {len(self.seen_states)} states have been visited"
+            )
+            print(state)
             return None
 
         if state.is_solved():
+            print("Found solution")
             return [state]
 
         # The input state is owned by the caller, and we must not modify it
@@ -449,6 +480,22 @@ class Game:
                     return [state, *result]
 
         # move any set of cards from any column to any other column
+        for from_column_index in range(8):
+            for to_column_index in range(8):
+                for stack_size in range(1, 9 + 1):
+                    if state_copy.can_move_column_to_other_column(
+                        from_column_index=from_column_index,
+                        to_column_index=to_column_index,
+                        stack_size=stack_size,
+                    ):
+                        state_copy.move_column_to_other_column(
+                            from_column_index=from_column_index,
+                            to_column_index=to_column_index,
+                            stack_size=stack_size,
+                        )
+                        result = self.play(state_copy)
+                        if result is not None:
+                            return [state, *result]
 
         return None
 
@@ -540,6 +587,10 @@ if __name__ == "__main__":
 
         state = GameState(columns)
         print(state)
+
+        game = Game()
+        solution = game.play(state)
+        print(f"solution: {solution}")
 
         # XXX: This is an invalid game state, for printing demo only
         progressed_columns: Columns = (
@@ -658,6 +709,43 @@ if __name__ == "__main__":
 
             self.assertEqual(state_b, state_c)
             self.assertEqual(hash(state_b), hash(state_c))
+
+        def test_hash_ignores_top_left_permutions(self) -> None:
+            """We should be able to optimize the exution time by detecting
+            more identical cycles where the only difference is the permuation
+            of the cards in the top left corner
+
+            E.G. a position with the top left storage having
+
+            🟥x ⬛x 🟩3
+
+            or
+
+            🟩3 🟥x ⬛x
+
+            is identical from a gameplay perspective
+            """
+            empty_columns: Columns = ([], [], [], [], [], [], [], [])
+
+            a = GameState(
+                empty_columns,
+                [
+                    Card(Suit.RED, None),
+                    Card(Suit.BLACK, None),
+                    Card(Suit.GREEN, 3),
+                ],
+            )
+
+            b = GameState(
+                empty_columns,
+                [
+                    Card(Suit.GREEN, 3),
+                    Card(Suit.RED, None),
+                    Card(Suit.BLACK, None),
+                ],
+            )
+
+            self.assertEqual(hash(a), hash(b))
 
         def test_can_move_top_left_to_column(self) -> None:
             state = GameState(
