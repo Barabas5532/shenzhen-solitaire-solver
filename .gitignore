@@ -1,1 +1,4 @@
 .venv
+solution*.txt
+
+.ipynb_checkpoints
