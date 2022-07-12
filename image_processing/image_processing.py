@@ -99,12 +99,54 @@ for card in cards:
     
     card_position[card] = list(zip(*matches[::-1]))
 
-# %% [markdown]
-# Now we have the positions of all the cards. We need to cluster the results into each column. We can do this easily by adding a 5 to 10 pixel threshold on the x coordinate and collecting similar x coordinates together.
-#
-# After this we can just sort by the y position to get the cards in the correct order for the column.
-
 # %%
 pprint(card_position)
+
+# %%
+from dataclasses import dataclass, replace
+from typing import Tuple
+from operator import attrgetter
+
+@dataclass(frozen=True)
+class CardWithPosition:
+    card: Card
+    position: Tuple[int, int]
+
+card_list = []
+
+for card in card_position:
+    for position in card_position[card]:
+        card_list.append(CardWithPosition(card, position))
+
+# 8 columns with 5 cards each
+assert len(card_list) == (8 * 5)
+
+# round the x coordinate to a multiple of 100
+round_x = lambda c: replace(c, position=(c.position[0]//100 * 100, c.position[1]))
+card_list = list(map(round_x, card_list))
+# Sort the cards by x and y position
+card_list = sorted(card_list, key=attrgetter('position'))
+
+pprint(card_list)
+
+# %%
+N = 5 # cards in each column
+columns = [card_list[i:i+N] for i in range(0, len(card_list), N)]
+for column in columns:
+    column[:] = list(map(attrgetter('card'), column))
+pprint(columns)
+
+# %%
+import sys
+
+sys.path.append('..')
+
+from solitaire import GameState
+
+pprint(GameState(columns))
+
+plt.figure()
+plt.imshow(bgr_to_rgb(game))
+plt.show()
 
 # %%
