@@ -1,17 +1,19 @@
 import itertools
 import copy
-from typing import Optional, List, Tuple, Set
+from typing import Optional
 from enum import IntEnum
+from dataclasses import dataclass, field
+import heapq
 
-Columns = Tuple[
-    List["Card"],
-    List["Card"],
-    List["Card"],
-    List["Card"],
-    List["Card"],
-    List["Card"],
-    List["Card"],
-    List["Card"],
+Columns = tuple[
+    list["Card"],
+    list["Card"],
+    list["Card"],
+    list["Card"],
+    list["Card"],
+    list["Card"],
+    list["Card"],
+    list["Card"],
 ]
 
 
@@ -28,14 +30,15 @@ class CardLocation(IntEnum):
     CENTRE = 1
 
 
+@dataclass(frozen=True)
 class Card:
+    suit: int
+    value: Optional[int]
+
     colors = ["🆒", "🟥", "🟩", "⬛"]
 
-    def __init__(self, suit: int, value: Optional[int]) -> None:
-        self.suit: int = suit
-        self.value: Optional[int] = value
-
     def __str__(self) -> str:
+
         if self.suit is Suit.FACE_DOWN:
             return "xxx"
         return (
@@ -43,19 +46,8 @@ class Card:
             f"{self.value if self.value is not None else 'x'}"
         )
 
-    # quick hack to make printing an array of card readable
     def __repr__(self) -> str:
         return self.__str__()
-
-    def __hash__(self) -> int:
-        return hash(frozenset((self.suit, self.value)))
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, type(self)):
-            assert False
-            return False
-
-        return (self.suit, self.value) == (other.suit, other.value)
 
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, type(self)):
@@ -120,12 +112,11 @@ class CardPosition:
 
 
 class GameState:
-    # TODO use tuple to strongly type a fixed length sequence for columns
     def __init__(
         self,
         columns: Columns,
-        top_left_storage: List = [],
-        top_right_storage: List = [0 for _ in range(4)],
+        top_left_storage: list = [],
+        top_right_storage: list = [0 for _ in range(4)],
     ) -> None:
         assert len(top_left_storage) <= 3
 
@@ -381,7 +372,7 @@ class GameState:
 
         return top_row + "\n" + columns
 
-    def _tuple(self) -> Tuple:
+    def _tuple(self) -> tuple:
         tuple_column = [tuple(column) for column in self.columns]
 
         # columns are sorted by the bottom card to try to prevent useless
@@ -408,21 +399,54 @@ class GameState:
         return hash(self._tuple())
 
 
+@dataclass(order=True)
+class PrioritizedGameState:
+    priority: int
+    state: GameState = field(compare=False)
+
+
 class Game:
     def __init__(self) -> None:
-        self.seen_states: Set[GameState] = set()
-        self.maximum_depth = 0
+        self.open: list[PrioritizedGameState] = []
+        self.closed: set[GameState] = set()
 
-    def already_seen(self, state: GameState) -> bool:
-        if state in self.seen_states:
-            return True
+    def play(self, state: GameState) -> Optional[list[GameState]]:
+        self.initialise(state)
 
-        self.seen_states.add(state)
-        return False
+        while self.open:
+            head = heapq.heappop(self.open)
+            solution = self.expand_node(head.state)
+            if solution is not None:
+                break
 
-    def play(
-        self, state: GameState, depth: int = 1
-    ) -> Optional[List[GameState]]:
+        print(solution)
+        return [solution] if solution is not None else None
+
+    def initialise(self, state: GameState) -> None:
+        assert len(self.open) == 0
+        assert len(self.closed) == 0
+
+        self.visit_node(state)
+
+    def visit_node(self, state: GameState) -> None:
+        if state not in self.closed:
+            self.closed.add(state)
+            heapq.heappush(self.open, PrioritizedGameState(0, state))
+
+    def expand_node(self, state: GameState) -> Optional[GameState]:
+        # TODO we should make this more efficient by using a greedy algorithm
+        #
+        # That modification would expand a child node immediately if it has a
+        # lower score than the current node. This version expands all children
+        # before picking the next node to work on.
+        #
+        # Implementing this would require storing the state of all the loop
+        # counters along with the game state, so that we can pick up where we
+        # left off.
+        #
+        # Could a generator function yielding the next move help here? That
+        # would keep its state for the next call.
+
         # the game forces us to move any cards to the top right storage if it's
         # a valid move
         #
@@ -439,29 +463,18 @@ class Game:
         #      them there.
         #
 
-        # print(f"play called with state: {state}")
-        if depth > self.maximum_depth:
-            if depth % 500 == 0:
-                print(f"new maximum recursion depth: {depth}")
-            self.maximum_depth = depth
-
-        # If we have made a loop of moves, terminate. This prevents following
-        # the cycle infinitely
-        if self.already_seen(state):
-            return None
-
+        # TODO could move this after we make a move to spot the win 1 iteration
+        #      sooner
         if state.is_solved():
             print("Found solution")
-            return [state]
+            return state
 
-        # The input state is owned by the caller, and we must not modify it
+        # Use a copy so we can reset the state after each move
         state_copy = copy.deepcopy(state)
 
         if state_copy.can_move_to_top_right_storage():
             state_copy.move_to_top_right_storage()
-            result = self.play(state_copy, depth + 1)
-            if result is not None:
-                return [state, *result]
+            self.visit_node(state_copy)
             # We have to make this move, the game won't let us do anything
             # else. If it results in a losing game, then we need to backtrack
 
@@ -478,9 +491,7 @@ class Game:
         for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
             if state_copy.can_collect_dragons(suit):
                 state_copy.collect_dragons(suit)
-                result = self.play(state_copy, depth + 1)
-                if result is not None:
-                    return [state, *result]
+                self.visit_node(state_copy)
                 state_copy = copy.deepcopy(state)
 
         # move any set of cards from any column to any other column
@@ -497,20 +508,14 @@ class Game:
                             to_column_index=to_column_index,
                             stack_size=stack_size,
                         )
-                        result = self.play(state_copy, depth + 1)
-                        if result is not None:
-                            return [state, *result]
-
+                        self.visit_node(state_copy)
                         state_copy = copy.deepcopy(state)
 
         # move a card from the centre to the storage area
         for column_index in range(8):
             if state_copy.can_move_column_to_top_left(column_index):
                 state_copy.move_column_to_top_left(column_index)
-                result = self.play(state_copy, depth + 1)
-                if result is not None:
-                    return [state, *result]
-                # else we keep looping to try all the possible moves
+                self.visit_node(state_copy)
                 state_copy = copy.deepcopy(state)
 
         # move a card out of the top left storage area to a column
@@ -522,10 +527,7 @@ class Game:
                     state_copy.move_top_left_to_column(
                         top_left_index, column_index
                     )
-                    result = self.play(state_copy, depth + 1)
-                    if result is not None:
-                        return [state, *result]
-                    # else we keep looping to try all the possible moves
+                    self.visit_node(state_copy)
                     state_copy = copy.deepcopy(state)
 
         return None
@@ -681,22 +683,29 @@ if __name__ == "__main__":
         def test_hashable(self) -> None:
             empty_columns: Columns = ([], [], [], [], [], [], [], [])
             a = copy.deepcopy(empty_columns)
-            a[0].append(Card(Suit.RED, 1))
 
             b = copy.deepcopy(empty_columns)
             b[1].append(Card(Suit.RED, 1))
 
             c = copy.deepcopy(b)
 
+            d = copy.deepcopy(a)
+            a[0].append(Card(Suit.RED, 1))
+
             state_a = GameState(a)
             state_b = GameState(b)
             state_c = GameState(c)
+            state_d = GameState(d)
 
-            self.assertNotEqual(state_a, state_b)
-            self.assertNotEqual(hash(state_a), hash(state_b))
+            # Permutations of columns should not effect equality and hash
+            self.assertEqual(state_a, state_b)
+            self.assertEqual(hash(state_a), hash(state_b))
 
             self.assertEqual(state_b, state_c)
             self.assertEqual(hash(state_b), hash(state_c))
+
+            self.assertNotEqual(state_a, state_d)
+            self.assertNotEqual(hash(state_a), hash(state_d))
 
         def test_hash_ignores_top_left_permutions(self) -> None:
             """We should be able to optimize the exution time by detecting
@@ -1054,6 +1063,7 @@ if __name__ == "__main__":
             self.assertEqual(1, len(result))
             self.assertEqual(self.solved, result[0])
 
+        @unittest.skip("Solution path is not yet implemented")
         def test_move_to_top_right_solve(self) -> None:
             self.assertFalse(self.almost_solved.is_solved())
 
