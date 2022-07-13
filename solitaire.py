@@ -2,7 +2,7 @@ import itertools
 import copy
 from typing import Optional
 from enum import IntEnum
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import heapq
 
 Columns = tuple[
@@ -399,10 +399,11 @@ class GameState:
         return hash(self._tuple())
 
 
-@dataclass(order=True)
+@dataclass(frozen=True, order=True)
 class PrioritizedGameState:
     priority: int
     state: GameState = field(compare=False)
+    path: list[GameState] = field(compare=False)
 
 
 class Game:
@@ -415,25 +416,70 @@ class Game:
 
         while self.open:
             head = heapq.heappop(self.open)
-            solution = self.expand_node(head.state)
+            solution = self.expand_node(head)
             if solution is not None:
                 break
 
-        print(solution)
-        return [solution] if solution is not None else None
+        return solution
+
+    def heuristic(self, state: GameState) -> int:
+        # comments are indicating what result we get if the code below the comment is removed
+        score = 0
+
+        # solution 0 length 173
+        # solution 1 length 120
+        # solution 2 length 275
+
+        # Collected cards are good
+        for value in state.top_right_storage:
+            score += value
+
+        # solution 0 length 64
+        # solution 1 length 76
+        # solution 2 length 87
+
+        # Cards hidden by dragons are bad
+        # TODO this is probably bad unless cards are counted as blocked even
+        # when the dragon is not revealed
+        not_empty_columns = filter(lambda c: len(c) != 0, state.columns)
+        blocked_columns = filter(lambda c: c[-1].value is None, not_empty_columns)
+        blocked_card_count = sum(map(lambda c: len(c) - 1, blocked_columns))
+        score -= blocked_card_count
+
+        # Yep, now it's super slow and the solutions are worse in some cases
+        # solution 0 length 70
+        # solution 1 length 98
+        # solution 2 length 73
+
+        # We use a min heap for the priority queue, so more negative score is
+        # better
+        return -score
 
     def initialise(self, state: GameState) -> None:
         assert len(self.open) == 0
         assert len(self.closed) == 0
 
-        self.visit_node(state)
+        self.visit_node(PrioritizedGameState(0, state, []), state)
 
-    def visit_node(self, state: GameState) -> None:
+    def visit_node(
+        self,
+        parent: PrioritizedGameState,
+        state: GameState,
+    ) -> None:
         if state not in self.closed:
             self.closed.add(state)
-            heapq.heappush(self.open, PrioritizedGameState(0, state))
+            # TODO calculate heuristic and assign it to priority
+            new_entry = replace(
+                parent,
+                priority=self.heuristic(state),
+                path=[*parent.path, state],
+                state=state,
+            )
+            heapq.heappush(self.open, new_entry)
 
-    def expand_node(self, state: GameState) -> Optional[GameState]:
+    def expand_node(
+        self, state: PrioritizedGameState
+    ) -> Optional[list[GameState]]:
         # TODO we should make this more efficient by using a greedy algorithm
         #
         # That modification would expand a child node immediately if it has a
@@ -465,16 +511,15 @@ class Game:
 
         # TODO could move this after we make a move to spot the win 1 iteration
         #      sooner
-        if state.is_solved():
-            print("Found solution")
-            return state
+        if state.state.is_solved():
+            return state.path
 
         # Use a copy so we can reset the state after each move
-        state_copy = copy.deepcopy(state)
+        state_copy = copy.deepcopy(state.state)
 
         if state_copy.can_move_to_top_right_storage():
             state_copy.move_to_top_right_storage()
-            self.visit_node(state_copy)
+            self.visit_node(state, state_copy)
             # We have to make this move, the game won't let us do anything
             # else. If it results in a losing game, then we need to backtrack
 
@@ -491,8 +536,8 @@ class Game:
         for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
             if state_copy.can_collect_dragons(suit):
                 state_copy.collect_dragons(suit)
-                self.visit_node(state_copy)
-                state_copy = copy.deepcopy(state)
+                self.visit_node(state, state_copy)
+                state_copy = copy.deepcopy(state.state)
 
         # move any set of cards from any column to any other column
         for from_column_index in range(8):
@@ -508,15 +553,15 @@ class Game:
                             to_column_index=to_column_index,
                             stack_size=stack_size,
                         )
-                        self.visit_node(state_copy)
-                        state_copy = copy.deepcopy(state)
+                        self.visit_node(state, state_copy)
+                        state_copy = copy.deepcopy(state.state)
 
         # move a card from the centre to the storage area
         for column_index in range(8):
             if state_copy.can_move_column_to_top_left(column_index):
                 state_copy.move_column_to_top_left(column_index)
-                self.visit_node(state_copy)
-                state_copy = copy.deepcopy(state)
+                self.visit_node(state, state_copy)
+                state_copy = copy.deepcopy(state.state)
 
         # move a card out of the top left storage area to a column
         for top_left_index in range(3):
@@ -527,8 +572,8 @@ class Game:
                     state_copy.move_top_left_to_column(
                         top_left_index, column_index
                     )
-                    self.visit_node(state_copy)
-                    state_copy = copy.deepcopy(state)
+                    self.visit_node(state, state_copy)
+                    state_copy = copy.deepcopy(state.state)
 
         return None
 
@@ -1063,7 +1108,6 @@ if __name__ == "__main__":
             self.assertEqual(1, len(result))
             self.assertEqual(self.solved, result[0])
 
-        @unittest.skip("Solution path is not yet implemented")
         def test_move_to_top_right_solve(self) -> None:
             self.assertFalse(self.almost_solved.is_solved())
 
