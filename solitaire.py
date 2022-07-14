@@ -439,17 +439,14 @@ class Game:
         # solution 2 length 87
 
         # Cards hidden by dragons are bad
-        # TODO this is probably bad unless cards are counted as blocked even
-        # when the dragon is not revealed
-        not_empty_columns = filter(lambda c: len(c) != 0, state.columns)
-        blocked_columns = filter(lambda c: c[-1].value is None, not_empty_columns)
-        blocked_card_count = sum(map(lambda c: len(c) - 1, blocked_columns))
+        has_dragon = lambda column: any(map(lambda card: card.is_dragon(), column))
+        dragon_columns = filter(has_dragon, state.columns)
+        blocked_card_count = sum(map(len, dragon_columns))
         score -= blocked_card_count
 
-        # Yep, now it's super slow and the solutions are worse in some cases
-        # solution 0 length 70
-        # solution 1 length 98
-        # solution 2 length 73
+        # solution 0 length 67
+        # solution 1 length 55
+        # solution 2 length 84
 
         # We use a min heap for the priority queue, so more negative score is
         # better
