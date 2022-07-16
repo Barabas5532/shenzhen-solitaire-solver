@@ -1,11 +1,12 @@
+import os
 from dataclasses import dataclass, replace
 from operator import attrgetter
+
 import cv2  # type: ignore
-import os
 import numpy as np
 
 from image_processing.image_list import CardImageNames
-from solitaire import Suit, Card, GameState, Columns
+from solitaire import Card, Columns, GameState, Suit
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 

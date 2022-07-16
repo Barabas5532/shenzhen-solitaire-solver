@@ -1,7 +1,7 @@
-from solitaire import Game, GameState, Card, Suit
-
 import resource
 import sys
+
+from solitaire import Card, Game, GameState, Suit
 
 # 512 MB stack, 1 million recursive calls
 resource.setrlimit(resource.RLIMIT_STACK, (512 * 2**10 * 2**10, -1))

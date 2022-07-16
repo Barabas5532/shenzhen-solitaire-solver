@@ -1,7 +1,7 @@
-from solitaire import Card, Suit
-
 import sys
 from typing import Optional
+
+from solitaire import Card, Suit
 
 sys.path.append("..")
 

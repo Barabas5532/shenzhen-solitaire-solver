@@ -1,9 +1,9 @@
-import itertools
 import copy
-from typing import Optional
-from enum import IntEnum
-from dataclasses import dataclass, field, replace
 import heapq
+import itertools
+from dataclasses import dataclass, field, replace
+from enum import IntEnum
+from typing import Optional
 
 Columns = tuple[
     list["Card"],
