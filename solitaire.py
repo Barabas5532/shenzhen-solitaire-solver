@@ -248,12 +248,11 @@ class GameState:
 
         free_dragon_count = 0
         for column in self.columns:
-            for card in reversed(column):
-                if card.is_dragon(suit):
-                    free_dragon_count += 1
-                else:
-                    # check next column
-                    break
+            if len(column) == 0:
+                continue
+
+            if column[-1].is_dragon(suit):
+                free_dragon_count += 1
 
         for card in self.top_left_storage:
             if card.is_dragon(suit):
@@ -909,13 +908,14 @@ if __name__ == "__main__":
                     ],
                     [
                         Card(Suit.BLACK, None),
-                        Card(Suit.BLACK, None),
                     ],
                     [
                         Card(Suit.BLACK, None),
                         Card(Suit.RED, 9),
                     ],
-                    [],
+                    [
+                        Card(Suit.BLACK, None),
+                    ],
                 ),
                 [
                     Card(Suit.RED, None),
@@ -924,7 +924,7 @@ if __name__ == "__main__":
             )
 
             self.assertTrue(state.can_collect_dragons(Suit.GREEN))
-            self.assertTrue(state.can_collect_dragons(Suit.RED))
+            self.assertFalse(state.can_collect_dragons(Suit.RED))
             self.assertFalse(state.can_collect_dragons(Suit.BLACK))
 
             state.collect_dragons(Suit.GREEN)
@@ -958,12 +958,13 @@ if __name__ == "__main__":
                     [],
                     [
                         Card(Suit.BLACK, None),
+                    ],
+                    [
                         Card(Suit.BLACK, None),
                     ],
                     [
                         Card(Suit.BLACK, None),
                     ],
-                    [],
                 ),
                 [
                     Card(Suit.FACE_DOWN, None),
