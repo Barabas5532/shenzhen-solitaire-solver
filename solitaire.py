@@ -32,7 +32,7 @@ class CardLocation(IntEnum):
 
 @dataclass(frozen=True)
 class Card:
-    suit: int
+    suit: Suit
     value: Optional[int]
 
     colors = ["🆒", "🟥", "🟩", "⬛"]
@@ -348,7 +348,7 @@ class GameState:
             if value == 0:
                 top_row += "   "
             else:
-                top_row += str(Card(suit, value))
+                top_row += str(Card(Suit(suit), value))
             top_row += " "
 
         # transpopse rows and columns so we can print the cards in the layout
@@ -423,7 +423,8 @@ class Game:
         return solution
 
     def heuristic(self, state: GameState) -> int:
-        # comments are indicating what result we get if the code below the comment is removed
+        # comments are indicating what result we get if the code below the
+        # comment is removed
         score = 0
 
         # solution 0 length 173
@@ -439,7 +440,9 @@ class Game:
         # solution 2 length 87
 
         # Cards hidden by dragons are bad
-        has_dragon = lambda column: any(map(lambda card: card.is_dragon(), column))
+        has_dragon = lambda column: any(  # noqa:E731
+            map(lambda card: card.is_dragon(), column)
+        )
         dragon_columns = filter(has_dragon, state.columns)
         blocked_card_count = sum(map(len, dragon_columns))
         score -= blocked_card_count
