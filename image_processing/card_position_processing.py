@@ -1,6 +1,5 @@
 import os
-from dataclasses import dataclass, replace
-from operator import attrgetter
+from dataclasses import dataclass
 
 import cv2  # type: ignore
 import numpy as np
@@ -42,8 +41,9 @@ def get_state_from_image(game: np.ndarray) -> GameState:
     cards = _get_list_of_all_cards()
     card_position = _get_position_of_each_card(game, cards)
     card_list = _get_card_position_list(card_position)
+    top_right = _get_top_right_cards(card_position)
 
-    return GameState(_sort_cards_to_columns(card_list))
+    return GameState(_sort_cards_to_columns(card_list), [], top_right)
 
 
 def _get_list_of_all_cards() -> list[Card]:
@@ -63,7 +63,10 @@ def _get_position_of_each_card(
     for card in cards:
         pattern = cv2.imread(card_image_names.get_name(card))
         matches = _find_matches(game, pattern)
-        assert len(matches[0]) == (4 if card.is_dragon() else 1)
+        if card.is_dragon():
+            assert len(matches[0]) == 4
+        else:
+            assert len(matches[0]) <= 1
 
         card_position[card] = tuple(zip(*matches[::-1]))
 
@@ -80,22 +83,65 @@ def _get_card_position_list(
     return card_list
 
 
+def _get_top_right_cards(
+    card_positions: dict[Card, tuple[tuple[int, int], ...]]
+) -> list:
+    out = []
+    if not len(card_positions[Card(Suit.SPECIAL, 1)]):
+        out.append(1)
+    else:
+        out.append(0)
+
+    for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
+        for value in reversed(range(1, 9 + 1)):
+            if not len(card_positions[Card(suit, value)]):
+                out.append(value)
+                break
+
+            if value == 1:
+                out.append(0)
+
+    assert len(out) == 4
+    assert out[0] <= 1
+
+    return out
+
+
 def _sort_cards_to_columns(
     card_list: list[CardWithPosition],
 ) -> Columns:
-    # 8 columns with 5 cards each
-    assert len(card_list) == (8 * 5)
+    # 8 columns with up to 5 cards each
+    assert len(card_list) <= (8 * 5)
 
-    # round the x coordinate to a multiple of 100
-    round_x = lambda c: replace(  # noqa:E731
-        c, position=(c.position[0] // 100 * 100, c.position[1])
-    )
-    card_list = list(map(round_x, card_list))
-    # Sort the cards by x and y position
-    card_list = sorted(card_list, key=attrgetter("position"))
+    columns: list[list[CardWithPosition]] = [[card_list[0]]]
 
-    N = 5  # cards in each column
-    columns = [card_list[i : i + N] for i in range(0, len(card_list), N)]
+    for card in card_list[1:]:
+        for i, column in enumerate(columns):
+            if abs(column[0].position[0] - card.position[0]) < 100:
+                column.append(card)
+                break
+
+            if i == len(columns) - 1:
+                columns.append([card])
+                break
+
+    assert len(columns) == 8
+
+    for column in columns:
+        assert len(column) >= 1
+
+    # At this point, columns have been created, each containing the cards from
+    # that column. The cards within the columns are not sorted. The columns are
+    # also not sorted by their x position.
+
+    for column in columns:
+        column[:] = sorted(
+            column,
+            key=lambda card: card.position[1],
+        )
+
+    columns = sorted(columns, key=lambda column: column[0].position[0])
+
     out: list[list[Card]] = []
     for column in columns:
         out.append([card_pos.card for card_pos in column])
@@ -112,3 +158,148 @@ def _sort_cards_to_columns(
         out[6],
         out[7],
     )
+
+
+if __name__ == "__main__":
+    import unittest
+
+    class ImageProcessingTest(unittest.TestCase):
+        def test_unsolved(self) -> None:
+            game_image = cv2.imread(
+                dir_path + "/test_images/unsolved_start.png"
+            )
+
+            expected = GameState(
+                (
+                    [
+                        Card(Suit.GREEN, 8),
+                        Card(Suit.GREEN, 6),
+                        Card(Suit.RED, None),
+                        Card(Suit.GREEN, 2),
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.RED, 3),
+                        Card(Suit.SPECIAL, 1),
+                        Card(Suit.RED, 5),
+                        Card(Suit.RED, 4),
+                        Card(Suit.BLACK, 3),
+                    ],
+                    [
+                        Card(Suit.BLACK, 1),
+                        Card(Suit.RED, 2),
+                        Card(Suit.BLACK, 7),
+                        Card(Suit.BLACK, None),
+                        Card(Suit.RED, None),
+                    ],
+                    [
+                        Card(Suit.BLACK, None),
+                        Card(Suit.GREEN, 1),
+                        Card(Suit.BLACK, None),
+                        Card(Suit.RED, 7),
+                        Card(Suit.BLACK, 8),
+                    ],
+                    [
+                        Card(Suit.BLACK, 5),
+                        Card(Suit.GREEN, 5),
+                        Card(Suit.GREEN, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.BLACK, None),
+                    ],
+                    [
+                        Card(Suit.RED, 8),
+                        Card(Suit.GREEN, None),
+                        Card(Suit.RED, 1),
+                        Card(Suit.GREEN, None),
+                        Card(Suit.BLACK, 4),
+                    ],
+                    [
+                        Card(Suit.GREEN, None),
+                        Card(Suit.BLACK, 6),
+                        Card(Suit.RED, 9),
+                        Card(Suit.GREEN, 3),
+                        Card(Suit.RED, 6),
+                    ],
+                    [
+                        Card(Suit.GREEN, 9),
+                        Card(Suit.GREEN, 7),
+                        Card(Suit.BLACK, 2),
+                        Card(Suit.BLACK, 9),
+                        Card(Suit.GREEN, 4),
+                    ],
+                )
+            )
+
+            actual = get_state_from_image(game_image)
+
+            self.assertEqual(expected, actual)
+
+        def test_partially_solved(self) -> None:
+            game_image = cv2.imread(
+                dir_path + "/test_images/partially_solved_start.png"
+            )
+
+            expected = GameState(
+                (
+                    [
+                        Card(Suit.BLACK, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.GREEN, 2),
+                        Card(Suit.GREEN, 7),
+                        Card(Suit.RED, 5),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.GREEN, 9),
+                        Card(Suit.BLACK, 7),
+                        Card(Suit.GREEN, 5),
+                    ],
+                    [
+                        Card(Suit.GREEN, None),
+                        Card(Suit.BLACK, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.BLACK, None),
+                        Card(Suit.GREEN, 6),
+                    ],
+                    [
+                        Card(Suit.BLACK, 5),
+                        Card(Suit.RED, 9),
+                        Card(Suit.RED, 7),
+                        Card(Suit.BLACK, 4),
+                        Card(Suit.BLACK, None),
+                    ],
+                    [
+                        Card(Suit.BLACK, 6),
+                        Card(Suit.GREEN, 3),
+                        Card(Suit.RED, 2),
+                        Card(Suit.BLACK, 3),
+                        Card(Suit.GREEN, None),
+                    ],
+                    [
+                        Card(Suit.RED, 3),
+                        Card(Suit.GREEN, None),
+                        Card(Suit.BLACK, 8),
+                        Card(Suit.RED, 6),
+                    ],
+                    [
+                        Card(Suit.GREEN, 4),
+                        Card(Suit.RED, 1),
+                        Card(Suit.GREEN, None),
+                    ],
+                    [
+                        Card(Suit.BLACK, 9),
+                        Card(Suit.RED, 8),
+                        Card(Suit.RED, None),
+                        Card(Suit.GREEN, 8),
+                        Card(Suit.RED, 4),
+                    ],
+                ),
+                [],
+                [1, 0, 1, 2],
+            )
+
+            actual = get_state_from_image(game_image)
+
+            self.assertEqual(expected, actual)
+
+    unittest.main()

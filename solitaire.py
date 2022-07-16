@@ -974,7 +974,7 @@ if __name__ == "__main__":
                 [1, 8, 9, 9],
             )
 
-            # We can't collect dragond if the top left storage is full
+            # We can't collect dragons if the top left storage is full
             self.assertFalse(state.can_collect_dragons(Suit.RED))
             # Except if the blocking card is a dragon that we wanted to collect
             self.assertTrue(state.can_collect_dragons(Suit.BLACK))
