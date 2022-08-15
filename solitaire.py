@@ -25,11 +25,6 @@ class Suit(IntEnum):
     FACE_DOWN = 4
 
 
-class CardLocation(IntEnum):
-    TOP_LEFT = 0
-    CENTRE = 1
-
-
 @dataclass(frozen=True)
 class Card:
     suit: Suit
@@ -105,12 +100,6 @@ class Card:
         return self.suit != other.suit and self.value == other.value - 1
 
 
-class CardPosition:
-    def __init__(self, location: CardLocation, index: int):
-        self.location = location
-        self.index = index
-
-
 class GameState:
     def __init__(
         self,
@@ -152,45 +141,33 @@ class GameState:
 
     # TODO Suit.SPECIAL card can always be moved to storage, it's hardcoded to
     # have value of 1 for now
-    def _get_move_to_top_right_storage(self) -> Optional[CardPosition]:
-        """Get the position of a card that can be moved to the top right
-        storage, if any"""
-        for i, column in enumerate(self.columns):
-            if len(column) == 0:
-                continue
-            card = column[-1]
-            if (
-                card.value == 1
-                or card.value is not None
-                and self.top_right_storage[card.suit] == card.value - 1
-            ):
-                return CardPosition(CardLocation.CENTRE, i)
+    def can_move_column_to_top_right_storage(self, column_index: int) -> bool:
+        if len(self.columns[column_index]) == 0:
+            return False
 
-        for i, card in enumerate(self.top_left_storage):
-            assert card.value != 1
-            if (
-                card.value is not None
-                and self.top_right_storage[card.suit] == card.value - 1
-            ):
-                return CardPosition(CardLocation.TOP_LEFT, i)
+        card = self.columns[column_index][-1]
+        return (
+            card.value == 1
+            or card.value is not None
+            and self.top_right_storage[card.suit] == card.value - 1
+        )
 
-        return None
+    def move_column_to_top_right_storage(self, column_index: int) -> None:
+        card = self.columns[column_index].pop()
+        self.top_right_storage[card.suit] = card.value
 
-    def can_move_to_top_right_storage(self) -> bool:
-        return self._get_move_to_top_right_storage() is not None
+    def can_move_top_left_to_top_right_storage(self, index: int) -> bool:
+        if len(self.top_left_storage) <= index:
+            return False
 
-    def move_to_top_right_storage(self) -> None:
-        card_position = self._get_move_to_top_right_storage()
-        assert card_position is not None
-        column_to_move = card_position.index
+        card = self.top_left_storage[index]
+        return (
+            card.value is not None
+            and self.top_right_storage[card.suit] == card.value - 1
+        )
 
-        if card_position.location == CardLocation.CENTRE:
-            card = self.columns[column_to_move].pop()
-        elif card_position.location == CardLocation.TOP_LEFT:
-            card = self.top_left_storage.pop(card_position.index)
-        else:
-            assert False
-
+    def move_top_left_to_top_right_storage(self, index: int) -> None:
+        card = self.top_left_storage.pop(index)
         self.top_right_storage[card.suit] = card.value
 
     def can_move_top_left_to_column(
@@ -398,11 +375,50 @@ class GameState:
         return hash(self._tuple())
 
 
+@dataclass(frozen=True)
+class GameMoveBase:
+    pass
+
+
+@dataclass(frozen=True)
+class GameMoveColumnToTopRightStorage(GameMoveBase):
+    column: int
+
+
+@dataclass(frozen=True)
+class GameMoveTopLeftToTopRightStorage(GameMoveBase):
+    top_left_index: int
+
+
+@dataclass(frozen=True)
+class GameMoveCollectDragons(GameMoveBase):
+    suit: Suit
+
+
+@dataclass(frozen=True)
+class GameMoveColumnToOtherColumn(GameMoveBase):
+    from_column_index: int
+    to_column_index: int
+    stack_size: int
+
+
+@dataclass(frozen=True)
+class GameMoveToTopLeftStorage(GameMoveBase):
+    column: int
+
+
+@dataclass(frozen=True)
+class GameMoveTopLeftToColumn(GameMoveBase):
+    top_left_index: int
+    column_index: int
+
+
 @dataclass(frozen=True, order=True)
 class PrioritizedGameState:
     priority: int
     state: GameState = field(compare=False)
     path: list[GameState] = field(compare=False)
+    moves: list[GameMoveBase] = field(compare=False)
 
 
 class Game:
@@ -410,7 +426,9 @@ class Game:
         self.open: list[PrioritizedGameState] = []
         self.closed: set[GameState] = set()
 
-    def play(self, state: GameState) -> Optional[list[GameState]]:
+    def play(
+        self, state: GameState
+    ) -> Optional[list[tuple[GameState, GameMoveBase]]]:
         self.initialise(state)
 
         while self.open:
@@ -458,27 +476,35 @@ class Game:
         assert len(self.open) == 0
         assert len(self.closed) == 0
 
-        self.visit_node(PrioritizedGameState(0, state, []), state)
+        self.closed.add(state)
+        new_entry = PrioritizedGameState(
+            priority=self.heuristic(state),
+            path=[state],
+            moves=[],
+            state=state,
+        )
+        heapq.heappush(self.open, new_entry)
 
     def visit_node(
         self,
         parent: PrioritizedGameState,
         state: GameState,
+        move: GameMoveBase,
     ) -> None:
         if state not in self.closed:
             self.closed.add(state)
-            # TODO calculate heuristic and assign it to priority
             new_entry = replace(
                 parent,
                 priority=self.heuristic(state),
                 path=[*parent.path, state],
+                moves=[*parent.moves, move],
                 state=state,
             )
             heapq.heappush(self.open, new_entry)
 
     def expand_node(
         self, state: PrioritizedGameState
-    ) -> Optional[list[GameState]]:
+    ) -> Optional[list[tuple[GameState, GameMoveBase]]]:
         # TODO we should make this more efficient by using a greedy algorithm
         #
         # That modification would expand a child node immediately if it has a
@@ -511,31 +537,46 @@ class Game:
         # TODO could move this after we make a move to spot the win 1 iteration
         #      sooner
         if state.state.is_solved():
-            return state.path
+            return list(itertools.zip_longest(state.path, state.moves))
 
         # Use a copy so we can reset the state after each move
         state_copy = copy.deepcopy(state.state)
 
-        if state_copy.can_move_to_top_right_storage():
-            state_copy.move_to_top_right_storage()
-            self.visit_node(state, state_copy)
-            # We have to make this move, the game won't let us do anything
-            # else. If it results in a losing game, then we need to backtrack
+        for i in range(8):
+            if state_copy.can_move_column_to_top_right_storage(i):
+                state_copy.move_column_to_top_right_storage(i)
+                self.visit_node(
+                    state, state_copy, GameMoveColumnToTopRightStorage(i)
+                )
+                # We have to make this move, the game won't let us do anything
+                # else. If it results in a losing game, then we need to
+                # backtrack
 
-            # TODO there might be some edge cases where the game doesn't force
-            # you to make this move. Those could be the states where this move
-            # actually makes you lose the game.
-            #
-            # E.G. when moving the card would mean a free columns stays blocked
-            # by another card.
-            return None
+                # TODO there might be some edge cases where the game doesn't
+                # force you to make this move. Those could be the states where
+                # this move actually makes you lose the game.
+                #
+                # E.G. when moving the card would mean a free columns stays
+                # blocked by another card.
+                return None
+
+        for i in range(3):
+            if state_copy.can_move_top_left_to_top_right_storage(i):
+                state_copy.move_top_left_to_top_right_storage(i)
+                self.visit_node(
+                    state, state_copy, GameMoveTopLeftToTopRightStorage(i)
+                )
+                # See comment above
+                return None
 
         # test out every possible move. The list of all moves are:
         # collect dragons
         for suit in [Suit.RED, Suit.GREEN, Suit.BLACK]:
             if state_copy.can_collect_dragons(suit):
                 state_copy.collect_dragons(suit)
-                self.visit_node(state, state_copy)
+                self.visit_node(
+                    state, state_copy, GameMoveCollectDragons(suit)
+                )
                 state_copy = copy.deepcopy(state.state)
 
         # move any set of cards from any column to any other column
@@ -552,14 +593,22 @@ class Game:
                             to_column_index=to_column_index,
                             stack_size=stack_size,
                         )
-                        self.visit_node(state, state_copy)
+                        self.visit_node(
+                            state,
+                            state_copy,
+                            GameMoveColumnToOtherColumn(
+                                from_column_index, to_column_index, stack_size
+                            ),
+                        )
                         state_copy = copy.deepcopy(state.state)
 
         # move a card from the centre to the storage area
         for column_index in range(8):
             if state_copy.can_move_column_to_top_left(column_index):
                 state_copy.move_column_to_top_left(column_index)
-                self.visit_node(state, state_copy)
+                self.visit_node(
+                    state, state_copy, GameMoveToTopLeftStorage(column_index)
+                )
                 state_copy = copy.deepcopy(state.state)
 
         # move a card out of the top left storage area to a column
@@ -571,7 +620,11 @@ class Game:
                     state_copy.move_top_left_to_column(
                         top_left_index, column_index
                     )
-                    self.visit_node(state, state_copy)
+                    self.visit_node(
+                        state,
+                        state_copy,
+                        GameMoveTopLeftToColumn(top_left_index, column_index),
+                    )
                     state_copy = copy.deepcopy(state.state)
 
         return None
@@ -687,8 +740,8 @@ if __name__ == "__main__":
             for i in range(4):
                 state = copy.deepcopy(result[-1])
                 self.assertFalse(state.is_solved())
-                self.assertTrue(state.can_move_to_top_right_storage())
-                state.move_to_top_right_storage()
+                self.assertTrue(state.can_move_column_to_top_right_storage(0))
+                state.move_column_to_top_right_storage(0)
                 result.append(state)
 
             self.assertTrue(state.is_solved())
@@ -714,11 +767,22 @@ if __name__ == "__main__":
                     [1, 7, 9, 9],
                 )
             ]
+
             for i in range(2):
                 state = copy.deepcopy(result[-1])
                 self.assertFalse(state.is_solved())
-                self.assertTrue(state.can_move_to_top_right_storage())
-                state.move_to_top_right_storage()
+
+                if i == 0:
+                    self.assertTrue(
+                        state.can_move_column_to_top_right_storage(0)
+                    )
+                    state.move_column_to_top_right_storage(0)
+                else:
+                    self.assertTrue(
+                        state.can_move_top_left_to_top_right_storage(0)
+                    )
+                    state.move_top_left_to_top_right_storage(0)
+
                 result.append(state)
 
             for s in result:
@@ -1107,7 +1171,7 @@ if __name__ == "__main__":
             self.assertIsNotNone(result)
             assert result is not None  # for mypy type narrowing
             self.assertEqual(1, len(result))
-            self.assertEqual(self.solved, result[0])
+            self.assertEqual(self.solved, result[0][0])
 
         def test_move_to_top_right_solve(self) -> None:
             self.assertFalse(self.almost_solved.is_solved())
@@ -1118,8 +1182,8 @@ if __name__ == "__main__":
             self.assertIsNotNone(result)
             assert result is not None  # for mypy type narrowing
             self.assertEqual(2, len(result))
-            self.assertEqual(self.almost_solved, result[0])
-            self.assertTrue(result[-1].is_solved())
+            self.assertEqual(self.almost_solved, result[0][0])
+            self.assertTrue(result[-1][0].is_solved())
 
     debug_print()
 
