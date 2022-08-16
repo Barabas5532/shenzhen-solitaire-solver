@@ -32,8 +32,8 @@ def new_game() -> None:
     # TODO get pyautogui to click the new game button, then wait long enough
     #      for animations to complete
     print("Creating a new game...")
-    print("Press enter after new game button was pressed")
-    input()
+    move_mouse(MouseActionClick(1500, 930))
+    pyautogui.sleep(5)
 
 
 def create_screenshot() -> None:
@@ -158,6 +158,10 @@ def get_move(
 ) -> MouseAction:
     state = step[0]
     move = step[1]
+
+    if move is None:
+        raise ValueError("Move is None")
+
     if isinstance(move, solitaire.GameMoveCollectDragons):
         print(f"collecting {move.suit} dragons")
         y_coordinate = {
@@ -189,20 +193,39 @@ def get_move(
 
     if isinstance(move, solitaire.GameMoveTopLeftToTopRightStorage):
         card = state.top_left_storage[move.top_left_index]
-        print(f"move card {card} from cell to foundation")
-        # Game state does not keep track of the exact location of cards in the
-        # top left. We'll use the pattern matching of pyautogui to find the
-        # correct location of the card.
-        # source =
+        print(f"move {card} from cell to foundation")
+        source = screen_coordinates.get_cell(card)
+        destination = screen_coordinates.get_foundation(card)
 
     if isinstance(move, solitaire.GameMoveColumnToOtherColumn):
+        print(
+            f"move {move.stack_size} cards from column "
+            f"{move.from_column_index} to column {move.to_column_index}"
+        )
+        source = screen_coordinates.get_column(
+            move.from_column_index,
+            len(state.columns[move.from_column_index]) - move.stack_size,
+        )
+        destination = screen_coordinates.get_column(
+            move.to_column_index, len(state.columns[move.to_column_index]) - 1
+        )
         pass
 
     if isinstance(move, solitaire.GameMoveToTopLeftStorage):
-        pass
+        card = state.columns[move.column][-1]
+        print(f"move {card} to cell")
+        source = screen_coordinates.get_column(
+            move.column, len(state.columns[move.column]) - 1
+        )
+        destination = screen_coordinates.get_cell()
 
     if isinstance(move, solitaire.GameMoveTopLeftToColumn):
-        pass
+        card = state.top_left_storage[move.top_left_index]
+        print(f"move {card} from cell to column {move.column_index}")
+        source = screen_coordinates.get_cell(card)
+        destination = screen_coordinates.get_column(
+            move.column_index, len(state.columns[move.column_index]) - 1
+        )
 
     return MouseActionDrag(*source, *destination)
 
@@ -224,7 +247,7 @@ def move_mouse(move: MouseAction) -> None:
         pyautogui.moveTo(1, 1)
         pyautogui.moveTo(move.x_start, move.y_start)
         pyautogui.mouseDown()
-        pyautogui.moveTo(move.x_end, move.y_end, 1)
+        pyautogui.moveTo(move.x_end, move.y_end, 0.25)
         pyautogui.mouseUp()
         pass
 
@@ -235,11 +258,16 @@ def move_mouse(move: MouseAction) -> None:
 def make_move(
     step: tuple[solitaire.GameState, solitaire.GameMoveBase]
 ) -> None:
-    move = get_move(step)
+    try:
+        move = get_move(step)
+    except ValueError as e:
+        print(f'Skipping move because of expection: {e}')
+        return
     move_mouse(move)
+    pyautogui.sleep(0.5)
 
 
-number_of_solves = 1
+number_of_solves = 50
 screen_coordinates = ScreenCoordinates()
 card_image_names = CardImageNames("./image_processing/images")
 
@@ -248,15 +276,15 @@ debug_print()
 # time.sleep(5)
 # move_mouse(MouseActionClick(1270, 940))
 
-start = screen_coordinates.get_column(0, 4)
-end = screen_coordinates.get_column(4, 3)
-move_mouse(MouseActionDrag(*start, *end))
+# start = screen_coordinates.get_column(0, 4)
+# end = screen_coordinates.get_column(4, 3)
+# move_mouse(MouseActionDrag(*start, *end))
 
 # print(screen_coordinates.get_foundation(solitaire.Card(solitaire.Suit.GREEN, 2)))
 # print(screen_coordinates.get_foundation(solitaire.Card(solitaire.Suit.RED, 1)))
-#print(screen_coordinates.get_cell(solitaire.Card(solitaire.Suit.RED, None)))
-#print(screen_coordinates.get_cell(solitaire.Card(solitaire.Suit.BLACK, None)))
-#print(screen_coordinates.get_cell())
+# print(screen_coordinates.get_cell(solitaire.Card(solitaire.Suit.RED, None)))
+# print(screen_coordinates.get_cell(solitaire.Card(solitaire.Suit.BLACK, None)))
+# print(screen_coordinates.get_cell())
 
-# for i in range(number_of_solves):
-#    solve_game()
+for i in range(number_of_solves):
+    solve_game()
