@@ -158,6 +158,8 @@ mdurl==0.1.1
     # via markdown-it-py
 mistune==0.8.4
     # via nbconvert
+mouseinfo==0.1.3
+    # via pyautogui
 mypy==0.961
     # via -r requirements.in
 mypy-extensions==0.4.3
@@ -242,26 +244,44 @@ ptyprocess==0.7.0
     #   terminado
 pure-eval==0.2.2
     # via stack-data
+pyautogui==0.9.53
+    # via -r requirements.in
 pycodestyle==2.8.0
     # via flake8
 pycparser==2.21
     # via cffi
 pyflakes==2.4.0
     # via flake8
+pygetwindow==0.0.9
+    # via pyautogui
 pygments==2.12.0
     # via
     #   ipython
     #   nbconvert
+pymsgbox==1.0.9
+    # via pyautogui
 pyparsing==3.0.9
     # via
     #   matplotlib
     #   packaging
+pyperclip==1.8.2
+    # via mouseinfo
+pyrect==0.2.0
+    # via pygetwindow
 pyrsistent==0.18.1
     # via jsonschema
+pyscreeze==0.1.28
+    # via pyautogui
 python-dateutil==2.8.2
     # via
     #   jupyter-client
     #   matplotlib
+python3-xlib==0.15
+    # via
+    #   mouseinfo
+    #   pyautogui
+pytweening==1.0.4
+    # via pyautogui
 pytz==2022.1
     # via babel
 pyyaml==6.0
