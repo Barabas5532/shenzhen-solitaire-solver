@@ -1,4 +1,6 @@
 use crate::card::*;
+use std::fmt::{write, Formatter};
+use std::{cmp, fmt};
 
 #[derive(Debug, Clone)]
 struct GameState {
@@ -62,22 +64,6 @@ impl GameState {
         self.top_right_storage[card.suit as usize] = card.value.unwrap()
     }
 
-    /*
-    def can_move_top_left_to_top_right_storage(self, index: int) -> bool:
-        if len(self.top_left_storage) <= index:
-            return False
-
-        card = self.top_left_storage[index]
-        return (
-            card.value is not None
-            and self.top_right_storage[card.suit] == card.value - 1
-        )
-
-    def move_top_left_to_top_right_storage(self, index: int) -> None:
-        card = self.top_left_storage.pop(index)
-        self.top_right_storage[card.suit] = card.value
-    */
-
     fn can_move_top_left_to_top_right_storage(&self, top_left_index: usize) -> bool {
         if self.top_left_storage.len() <= top_left_index {
             return false;
@@ -96,6 +82,106 @@ impl GameState {
         self.top_right_storage[card.suit as usize] = card
             .value
             .expect("must call can_move_to_top_right_storage first");
+    }
+}
+
+/*
+
+   def __str__(self) -> str:
+       top_row = "========== GAME STATE =========\n"
+       for i, card in enumerate(sorted(self.top_left_storage)):
+           top_row += str(card)
+           top_row += " "
+
+       for i in range(3 - len(self.top_left_storage) + 1):
+           top_row += "    "
+
+       for suit, value in enumerate(self.top_right_storage):
+           if value == 0:
+               top_row += "   "
+           else:
+               top_row += str(Card(Suit(suit), value))
+           top_row += " "
+
+       # transpopse rows and columns so we can print the cards in the layout
+       # that matches the game
+       transposed = list(
+           map(
+               list,  # type: ignore
+               itertools.zip_longest(*self.columns, fillvalue=None),
+           )
+       )
+
+       columns = ""
+       for i, column in enumerate(transposed):
+           for j, card in enumerate(column):
+               if card is None:
+                   columns += "   "
+               else:
+                   columns += str(card)
+               columns += " "
+           columns += "\n"
+
+       return top_row + "\n" + columns
+*/
+
+impl fmt::Display for GameState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let mut top_row = String::from("========== GAME STATE =========\n");
+
+        let mut top_left_sorted = self.top_left_storage.clone();
+        top_left_sorted.sort();
+
+        for (_, card) in top_left_sorted.iter().enumerate() {
+            write(&mut top_row, format_args!("{} ", card))?;
+        }
+
+        for _ in 0..3 - self.top_left_storage.len() + 1 {
+            top_row += "    ";
+        }
+
+        for (suit, value) in self.top_right_storage.iter().enumerate() {
+            let value = *value;
+
+            if value == 0 {
+                top_row += "   "
+            } else {
+                write(
+                    &mut top_row,
+                    format_args!(
+                        "{} ",
+                        Card {
+                            suit: Suit::try_from(suit).unwrap(),
+                            value: Some(value)
+                        }
+                    ),
+                )?;
+            }
+        }
+
+        let mut columns = String::new();
+
+        let longest_row_len = self.columns.iter().fold(0, |max, v| cmp::max(max, v.len()));
+
+        for row_index in 0..longest_row_len {
+            for column in self.columns.iter() {
+                let card = column.get(row_index);
+                match card {
+                    None => {
+                        columns += "   ";
+                    }
+                    Some(card) => {
+                        columns += card.to_string().as_str();
+                        columns += " ";
+                    }
+                }
+            }
+            columns += "\n";
+        }
+
+        top_row += "\n";
+        top_row += columns.as_str();
+        f.write_str(top_row.as_str())
     }
 }
 
@@ -222,12 +308,10 @@ mod test {
             }
 
             result.push(state);
+        }
 
-            /*
-            for s in result{
-                println!(s)
-            }
-             */
+        for s in result {
+            println!("{s}")
         }
     }
 }

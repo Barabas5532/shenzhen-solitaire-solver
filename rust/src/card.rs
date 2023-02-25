@@ -1,4 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
+use std::fmt;
+use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
@@ -10,10 +12,42 @@ pub enum Suit {
     FaceDown,
 }
 
+impl TryFrom<usize> for Suit {
+    type Error = ();
+
+    fn try_from(value: usize) -> Result<Self, Self::Error> {
+        match value {
+            x if x == Suit::Special as usize => Ok(Suit::Special),
+            x if x == Suit::Red as usize => Ok(Suit::Red),
+            x if x == Suit::Green as usize => Ok(Suit::Green),
+            x if x == Suit::Black as usize => Ok(Suit::Black),
+            x if x == Suit::FaceDown as usize => Ok(Suit::FaceDown),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub struct Card {
     pub suit: Suit,
     pub value: Option<u8>,
+}
+
+impl fmt::Display for Card {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let colors = ["🟦", "🟥", "🟩", "⬛"];
+        f.write_str(&match { self.suit } {
+            Suit::FaceDown => String::from("xxx"),
+            _ => format!(
+                "{}{}",
+                colors[self.suit as usize],
+                match { self.value } {
+                    None => String::from("x"),
+                    Some(value) => format!("{}", value),
+                }
+            ),
+        })
+    }
 }
 
 #[cfg(test)]
