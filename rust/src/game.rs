@@ -5,7 +5,7 @@ struct GameState {
     // scratch pad to temporarily store cards
     // a space is lost when dragons are stacked here, represented by a
     // Card(Suit.FACE_DOWN, None)
-    top_left_storage: [Card; 3],
+    top_left_storage: Vec<Card>,
 
     // The aim of the game is to get all the cards stacked here
     top_right_storage: [u8; 4],
@@ -72,41 +72,32 @@ impl GameState {
             card.value is not None
             and self.top_right_storage[card.suit] == card.value - 1
         )
+
+    def move_top_left_to_top_right_storage(self, index: int) -> None:
+        card = self.top_left_storage.pop(index)
+        self.top_right_storage[card.suit] = card.value
     */
+
+    fn can_move_top_left_to_top_right_storage(&self, top_left_index: usize) -> bool {
+        if self.top_left_storage.len() <= top_left_index {
+            return false;
+        }
+
+        let card = &self.top_left_storage[top_left_index];
+
+        match { card.value } {
+            None => false,
+            Some(value) => self.top_right_storage[card.suit as usize] == value - 1,
+        }
+    }
+
+    fn move_top_left_to_top_right_storage(&mut self, top_left_index: usize) {
+        let card = self.top_left_storage.remove(top_left_index);
+        self.top_right_storage[card.suit as usize] = card
+            .value
+            .expect("must call can_move_to_top_right_storage first");
+    }
 }
-
-/*
-       def test_move_to_top_right(self) -> None:
-           result = [
-               GameState(
-                   (
-                       [
-                           Card(Suit.RED, 9),
-                           Card(Suit.GREEN, 9),
-                           Card(Suit.BLACK, 9),
-                           Card(Suit.SPECIAL, 1),
-                       ],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [],
-                       [],
-                   ),
-                   [Card(Suit.FACE_DOWN, None)] * 3,
-                   [0, 8, 8, 8],
-               )
-           ]
-           for i in range(4):
-               state = copy.deepcopy(result[-1])
-               self.assertFalse(state.is_solved())
-               self.assertTrue(state.can_move_column_to_top_right_storage(0))
-               state.move_column_to_top_right_storage(0)
-               result.append(state)
-
-           self.assertTrue(state.is_solved())
-*/
 
 #[cfg(test)]
 mod test {
@@ -145,7 +136,7 @@ mod test {
                 vec![],
                 vec![],
             ],
-            top_left_storage: [
+            top_left_storage: vec![
                 Card {
                     suit: FaceDown,
                     value: None,
@@ -163,7 +154,7 @@ mod test {
         }];
 
         for _ in 0..4 {
-            let mut state = (*result.last().unwrap()).clone();
+            let mut state = result.last().unwrap().clone();
             assert_that!(state.is_solved(), eq(false));
             assert_that!(state.can_move_column_to_top_right_storage(0), eq(true));
             state.move_column_to_top_right_storage(0);
@@ -171,5 +162,72 @@ mod test {
         }
 
         assert_that!(result.last().unwrap().is_solved(), eq(true));
+    }
+
+    #[test]
+    fn test_move_storage_to_top_right() {
+        let mut result = vec![GameState {
+            columns: [
+                vec![Card {
+                    suit: Red,
+                    value: Some(8),
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: Red,
+                    value: Some(9),
+                },
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+            ],
+            top_right_storage: [1, 7, 9, 9],
+        }];
+
+        for i in 0..2 {
+            let mut state = result.last().unwrap().clone();
+            assert_that!(state.is_solved(), eq(false));
+
+            if i == 0 {
+                assert_that!(state.can_move_column_to_top_right_storage(0), eq(true));
+                state.move_column_to_top_right_storage(0);
+            } else {
+                assert_that!(state.can_move_top_left_to_top_right_storage(0), eq(true));
+                state.move_top_left_to_top_right_storage(0);
+            }
+
+            result.push(state);
+
+            /*
+            for s in result{
+                println!(s)
+            }
+             */
+        }
     }
 }
