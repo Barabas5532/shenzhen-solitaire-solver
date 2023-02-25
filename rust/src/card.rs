@@ -39,6 +39,10 @@ impl Card {
         self.value == None
     }
 
+    pub fn is_dragon_with_suit(&self, suit: Suit) -> bool {
+        self == &Card { suit, value: None }
+    }
+
     pub fn can_be_moved_on_top_of(&self, other: &Self) -> bool {
         if [self.suit, other.suit].contains(&Special) {
             return false;

@@ -17,6 +17,12 @@ struct GameState {
     columns: [Vec<Card>; 8],
 }
 
+struct MoveColumnParameters {
+    from_column_index: usize,
+    to_column_index: usize,
+    stack_size: usize,
+}
+
 impl GameState {
     // All the columns in the centre have no cards
     pub fn is_solved(&self) -> bool {
@@ -123,6 +129,126 @@ impl GameState {
         self.top_left_storage
             .push(self.columns[column_index].pop().unwrap());
         assert!(self.top_left_storage.len() <= 3);
+    }
+
+    fn can_collect_dragons(&self, suit: Suit) -> bool {
+        if 3 == self
+            .top_left_storage
+            .iter()
+            .filter(|card| !card.is_dragon_with_suit(suit))
+            .count()
+        {
+            return false;
+        }
+
+        let mut free_dragon_count = 0;
+        for column in &self.columns {
+            if column.is_empty() {
+                continue;
+            }
+
+            if column.last().unwrap().is_dragon_with_suit(suit) {
+                free_dragon_count += 1;
+            }
+        }
+
+        for card in &self.top_left_storage {
+            if card.is_dragon_with_suit(suit) {
+                free_dragon_count += 1
+            }
+        }
+
+        free_dragon_count == 4
+    }
+
+    fn collect_dragons(&mut self, suit: Suit) {
+        // This is always called after checking if this move is valid.
+        // Therefore, we can just remove all the dragons and add a face down
+        // card to the top left.
+        for column in &mut self.columns {
+            column.retain(|card| !card.is_dragon_with_suit(suit));
+        }
+
+        self.top_left_storage
+            .retain(|card| !card.is_dragon_with_suit(suit));
+
+        self.top_left_storage.push(Card {
+            suit: Suit::FaceDown,
+            value: None,
+        });
+        assert!(self.top_left_storage.len() <= 3)
+    }
+
+    fn get_column_stack_size(&self, column_index: usize) -> usize {
+        if self.columns[column_index].is_empty() {
+            return 0;
+        }
+
+        let mut stack_size = 1;
+
+        let column = &self.columns[column_index];
+        for (i, card) in column.iter().enumerate() {
+            if i + 1 == column.len() {
+                break;
+            }
+
+            let next_card = &column[i + 1];
+
+            // TODO doing this loop from the back might get better performance.
+            // We can stop at the first card that is not part of the stack
+            // instead of checking all the cards.
+            if next_card.can_be_moved_on_top_of(card) {
+                stack_size += 1;
+            } else {
+                stack_size = 1;
+            }
+        }
+
+        stack_size
+    }
+
+    fn can_move_column_to_other_column(&self, p: MoveColumnParameters) -> bool {
+        let actual_stack_size = self.get_column_stack_size(p.from_column_index);
+
+        // TODO this statement is redundant, stack size is always greater than
+        //      zero. Remove once we have enough test coverage
+        if actual_stack_size == 0 {
+            return false;
+        }
+
+        if p.stack_size > actual_stack_size {
+            return false;
+        }
+
+        if self.columns[p.to_column_index].is_empty() {
+            return true;
+        }
+
+        let column = &self.columns[p.from_column_index];
+        let stack_first_card = &column[column.len() - p.stack_size];
+        let target_card = self.columns[p.to_column_index].last().unwrap();
+        return stack_first_card.can_be_moved_on_top_of(target_card);
+    }
+
+    fn move_column_to_other_column(&mut self, p: MoveColumnParameters) {
+        assert_ne!(p.from_column_index, p.to_column_index);
+        let mid = cmp::max(p.from_column_index, p.to_column_index);
+        let (left, right) = self.columns.split_at_mut(mid);
+
+        let (from_column, to_column) = if p.from_column_index < mid {
+            (
+                &mut left[p.from_column_index],
+                &mut right[p.to_column_index - mid],
+            )
+        } else {
+            (
+                &mut right[p.from_column_index - mid],
+                &mut left[p.to_column_index],
+            )
+        };
+
+        let card_stack = { from_column.drain(from_column.len() - p.stack_size..) };
+        to_column.extend(card_stack);
     }
 }
 
@@ -675,5 +801,301 @@ mod test {
 
         // Now that the top left is filled up, no cards can be moved there
         assert_that!(state.can_move_column_to_top_left(1), eq(false))
+    }
+
+    #[test]
+    fn test_collect_dragons() {
+        let mut state = GameState {
+            columns: [
+                vec![Card {
+                    suit: Green,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: None,
+                }],
+                vec![
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                ],
+                vec![Card {
+                    suit: Black,
+                    value: None,
+                }],
+                vec![
+                    Card {
+                        suit: Black,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: Some(9),
+                    },
+                ],
+                vec![Card {
+                    suit: Black,
+                    value: None,
+                }],
+            ],
+            top_left_storage: vec![Card {
+                suit: Red,
+                value: None,
+            }],
+            top_right_storage: [1, 8, 9, 9],
+        };
+
+        assert_that!(state.can_collect_dragons(Green), eq(true));
+        assert_that!(state.can_collect_dragons(Red), eq(false));
+        assert_that!(state.can_collect_dragons(Black), eq(false));
+
+        state.collect_dragons(Suit::Green);
+        assert_that!(state.columns[0].is_empty(), eq(true));
+        assert_that!(state.columns[1].is_empty(), eq(true));
+        assert_that!(state.columns[2].is_empty(), eq(true));
+        assert_that!(state.columns[3].is_empty(), eq(true));
+        assert_that!(
+            state.top_left_storage.contains(&Card {
+                suit: FaceDown,
+                value: None
+            }),
+            eq(true)
+        );
+        assert_that!(
+            state.top_left_storage.contains(&Card {
+                suit: Red,
+                value: None
+            }),
+            eq(true)
+        );
+        assert_that!(state.top_left_storage.len(), eq(2));
+
+        state.collect_dragons(Suit::Red);
+        assert_that!(state.columns[4].is_empty(), eq(true));
+        assert_that!(state.top_left_storage.len(), eq(2));
+    }
+
+    #[test]
+    fn test_can_not_collect_dragons_when_storage_full() {
+        let mut state = GameState {
+            columns: [
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: None,
+                }],
+                vec![],
+                vec![Card {
+                    suit: Black,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Black,
+                    value: None,
+                }],
+                vec![Card {
+                    suit: Black,
+                    value: None,
+                }],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: Red,
+                    value: Some(9),
+                },
+                Card {
+                    suit: Black,
+                    value: None,
+                },
+            ],
+            top_right_storage: [1, 8, 9, 9],
+        };
+
+        // We can't collect dragons if the top left storage is full
+        assert_that!(state.can_collect_dragons(Red), eq(false));
+        // Except if the blocking card is a dragon that we wanted to collect
+        assert_that!(state.can_collect_dragons(Black), eq(true));
+
+        state.collect_dragons(Black);
+        assert_that!(state.top_left_storage.len(), eq(3));
+
+        for column in &state.columns {
+            assert_that!(
+                column.contains(&Card {
+                    suit: Black,
+                    value: None
+                }),
+                eq(false)
+            );
+        }
+    }
+
+    #[test]
+    fn test_move_column_to_other_column() {
+        let state = GameState {
+            columns: [
+                vec![Card {
+                    suit: Red,
+                    value: Some(9),
+                }],
+                vec![
+                    Card {
+                        suit: Green,
+                        value: Some(8),
+                    },
+                    Card {
+                        suit: Black,
+                        value: Some(7),
+                    },
+                ],
+                vec![Card {
+                    suit: Red,
+                    value: Some(8),
+                }],
+                vec![
+                    Card {
+                        suit: Black,
+                        value: Some(9),
+                    },
+                    Card {
+                        suit: Green,
+                        value: Some(9),
+                    },
+                    Card {
+                        suit: Black,
+                        value: Some(8),
+                    },
+                ],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+            ],
+            top_right_storage: [1, 7, 7, 6],
+        };
+
+        // Can't move if the source column is empty
+        assert_that!(
+            state.can_move_column_to_other_column(MoveColumnParameters {
+                from_column_index: 4,
+                to_column_index: 7,
+                stack_size: 1,
+            }),
+            eq(false)
+        );
+
+        // Can't move if the source column stack size is less than the
+        // requested stack size
+        assert_that!(
+            state.can_move_column_to_other_column(MoveColumnParameters {
+                from_column_index: 0,
+                to_column_index: 7,
+                stack_size: 2,
+            }),
+            eq(false)
+        );
+
+        // Can move to an empty column
+        assert_that!(
+            state.can_move_column_to_other_column(MoveColumnParameters {
+                from_column_index: 0,
+                to_column_index: 7,
+                stack_size: 1,
+            }),
+            eq(true)
+        );
+        let mut state_copy = state.clone();
+        let card_to_move = state_copy.columns[0].last().unwrap().clone();
+        state_copy.move_column_to_other_column(MoveColumnParameters {
+            from_column_index: 0,
+            to_column_index: 7,
+            stack_size: 1,
+        });
+        assert_that!(state_copy.columns[0].is_empty(), eq(true));
+        assert_that!(state_copy.columns[0].contains(&card_to_move), eq(false));
+        assert_that!(state_copy.columns[7].len(), eq(1));
+        assert_that!(state_copy.columns[7].contains(&card_to_move), eq(true));
+
+        // Can move stack to empty column
+        assert_that!(
+            state.can_move_column_to_other_column(MoveColumnParameters {
+                from_column_index: 3,
+                to_column_index: 7,
+                stack_size: 2,
+            }),
+            eq(true)
+        );
+
+        // Can move stack on top of another card
+        assert_that!(
+            state.can_move_column_to_other_column(MoveColumnParameters {
+                from_column_index: 1,
+                to_column_index: 0,
+                stack_size: 2,
+            }),
+            eq(true)
+        );
+        let mut state_copy = state.clone();
+        let cards_to_move = &state_copy.columns[1][state_copy.columns[1].len() - 2..].to_vec();
+        state_copy.move_column_to_other_column(MoveColumnParameters {
+            from_column_index: 1,
+            to_column_index: 0,
+            stack_size: 2,
+        });
+        assert_that!(state_copy.columns[1].is_empty(), eq(true));
+        for card_to_move in cards_to_move {
+            assert_that!(state_copy.columns[1].contains(card_to_move), eq(false));
+        }
+        assert_that!(state_copy.columns[0].len(), eq(3));
+        for card_to_move in cards_to_move {
+            assert_that!(state_copy.columns[0].contains(card_to_move), eq(true));
+        }
     }
 }
