@@ -1,8 +1,9 @@
+use crate::card::Suit::FaceDown;
 use crate::card::*;
 use std::fmt::{write, Formatter};
 use std::{cmp, fmt};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 struct GameState {
     // scratch pad to temporarily store cards
     // a space is lost when dragons are stacked here, represented by a
@@ -83,47 +84,87 @@ impl GameState {
             .value
             .expect("must call can_move_to_top_right_storage first");
     }
+
+    fn can_move_top_left_to_column(&self, top_left_index: usize, column_index: usize) -> bool {
+        if top_left_index >= self.top_left_storage.len() {
+            return false;
+        }
+
+        let card_to_move = &self.top_left_storage[top_left_index];
+        // Can't move collected dragons
+        if card_to_move.suit == FaceDown {
+            return false;
+        }
+
+        // We are sure that the top left storage has a movable card now
+
+        // moving to an empty column is always allowed
+        if self.columns[column_index].is_empty() {
+            return true;
+        }
+
+        let target_card = self.columns[column_index].last().unwrap();
+        if target_card.is_dragon() {
+            return false;
+        }
+
+        card_to_move.can_be_moved_on_top_of(target_card)
+    }
+
+    fn move_top_left_to_column(&mut self, top_left_index: usize, column_index: usize) {
+        self.columns[column_index].push(self.top_left_storage.remove(top_left_index))
+    }
+
+    fn can_move_column_to_top_left(&self, column_index: usize) -> bool {
+        !self.columns[column_index].is_empty() && self.top_left_storage.len() < 3
+    }
+
+    fn move_column_to_top_left(&mut self, column_index: usize) {
+        self.top_left_storage
+            .push(self.columns[column_index].pop().unwrap());
+        assert!(self.top_left_storage.len() <= 3);
+    }
 }
 
 /*
+   def _tuple(self) -> tuple:
+       tuple_column = [tuple(column) for column in self.columns]
 
-   def __str__(self) -> str:
-       top_row = "========== GAME STATE =========\n"
-       for i, card in enumerate(sorted(self.top_left_storage)):
-           top_row += str(card)
-           top_row += " "
-
-       for i in range(3 - len(self.top_left_storage) + 1):
-           top_row += "    "
-
-       for suit, value in enumerate(self.top_right_storage):
-           if value == 0:
-               top_row += "   "
-           else:
-               top_row += str(Card(Suit(suit), value))
-           top_row += " "
-
-       # transpopse rows and columns so we can print the cards in the layout
-       # that matches the game
-       transposed = list(
-           map(
-               list,  # type: ignore
-               itertools.zip_longest(*self.columns, fillvalue=None),
-           )
+       # columns are sorted by the bottom card to try to prevent useless
+       # moves moving stacks to another empty column
+       tuple_column = sorted(
+           tuple_column,
+           key=lambda x: x[0] if len(x) != 0 else Card(Suit.SPECIAL, None),
        )
 
-       columns = ""
-       for i, column in enumerate(transposed):
-           for j, card in enumerate(column):
-               if card is None:
-                   columns += "   "
-               else:
-                   columns += str(card)
-               columns += " "
-           columns += "\n"
-
-       return top_row + "\n" + columns
+       return (
+           tuple(sorted(self.top_left_storage)),
+           tuple(tuple_column),
+           tuple(self.top_right_storage),
+       )
 */
+
+/*
+impl PartialEq<Self> for GameState {
+    fn eq(&self, other: &Self) -> bool {
+        // columns are sorted by the bottom card to try to prevent useless
+        // moves moving stacks to another empty column
+
+        let get_bottom_card = |col: &Vec<Card>| {
+            col.first().unwrap_or(&Card {
+                suit: Suit::Special,
+                value: None,
+            })
+        };
+        let bottom_card_sort =
+            |a: &Vec<Card>, b: &Vec<Card>| get_bottom_card(a).cmp(get_bottom_card(b));
+        let columns = self.columns.sort_by(bottom_card_sort);
+        let other_columns = other.columns.sort_by(bottom_card_sort);
+
+        columns == other_columns
+    }
+}
+ */
 
 impl fmt::Display for GameState {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -191,6 +232,14 @@ mod test {
     use crate::card::Suit::{Black, FaceDown, Green, Red, Special};
     use googletest::matchers::*;
     use googletest::*;
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    fn calculate_hash<T: Hash>(t: &T) -> u64 {
+        let mut s = DefaultHasher::new();
+        t.hash(&mut s);
+        s.finish()
+    }
 
     #[test]
     fn test_move_to_top_right() {
@@ -313,5 +362,318 @@ mod test {
         for s in result {
             println!("{s}")
         }
+    }
+
+    #[test]
+    fn test_hashable() {
+        let empty_columns: [Vec<Card>; 8] = [
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ];
+
+        let mut a = empty_columns.clone();
+
+        let mut b = empty_columns.clone();
+        b[1].push(Card {
+            suit: Red,
+            value: Some(1),
+        });
+
+        let c = b.clone();
+
+        let d = a.clone();
+        a[0].push(Card {
+            suit: Red,
+            value: Some(1),
+        });
+
+        let state_a = GameState {
+            columns: a,
+            top_right_storage: [0; 4],
+            top_left_storage: vec![],
+        };
+        let state_b = GameState {
+            columns: b,
+            top_right_storage: [0; 4],
+            top_left_storage: vec![],
+        };
+        let state_c = GameState {
+            columns: c,
+            top_right_storage: [0; 4],
+            top_left_storage: vec![],
+        };
+        let state_d = GameState {
+            columns: d,
+            top_right_storage: [0; 4],
+            top_left_storage: vec![],
+        };
+
+        let hash_a = calculate_hash(&state_a);
+        let hash_b = calculate_hash(&state_b);
+        let hash_c = calculate_hash(&state_c);
+        let hash_d = calculate_hash(&state_d);
+
+        // TODO Permutations of columns should not effect equality and hash
+        // assert_that!(state_a, eq(state_b.clone()));
+        // assert_that!(hash_a, eq(hash_b));
+
+        assert_that!(state_b, eq(state_c));
+        assert_that!(hash_b, eq(hash_c));
+
+        assert_that!(state_a, not(eq(state_d)));
+        assert_that!(hash_a, not(eq(hash_d)));
+    }
+
+    /*
+
+       def test_hash_ignores_top_left_permutions(self) -> None:
+           """We should be able to optimize the exution time by detecting
+           more identical cycles where the only difference is the permuation
+           of the cards in the top left corner
+
+           E.G. a position with the top left storage having
+
+           🟥x ⬛x 🟩3
+
+           or
+
+           🟩3 🟥x ⬛x
+
+           is identical from a gameplay perspective
+           """
+           empty_columns: Columns = ([], [], [], [], [], [], [], [])
+
+           a = GameState(
+               empty_columns,
+               [
+                   Card(Suit.RED, None),
+                   Card(Suit.BLACK, None),
+                   Card(Suit.GREEN, 3),
+               ],
+           )
+
+           b = GameState(
+               empty_columns,
+               [
+                   Card(Suit.GREEN, 3),
+                   Card(Suit.RED, None),
+                   Card(Suit.BLACK, None),
+               ],
+           )
+
+           self.assertEqual(hash(a), hash(b))
+
+    */
+
+    #[test]
+    fn test_can_move_top_left_to_column() {
+        let mut state = GameState {
+            columns: [
+                vec![
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                ],
+                vec![Card {
+                    suit: Red,
+                    value: Some(9),
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: Some(9),
+                }],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: Green,
+                    value: None,
+                },
+                Card {
+                    suit: Red,
+                    value: Some(8),
+                },
+            ],
+            top_right_storage: [9, 8, 9, 9],
+        };
+
+        // face down can't move even to a free column
+        assert_that!(state.can_move_top_left_to_column(0, 7), eq(false));
+
+        // dragon can move only to a free column
+        assert_that!(state.can_move_top_left_to_column(1, 0), eq(false));
+        assert_that!(state.can_move_top_left_to_column(1, 1), eq(false));
+        assert_that!(state.can_move_top_left_to_column(1, 2), eq(false));
+        assert_that!(state.can_move_top_left_to_column(1, 7), eq(true));
+
+        // regular card can move onto another card of a different suit and
+        // one lower value
+        assert_that!(state.can_move_top_left_to_column(2, 0), eq(false));
+        assert_that!(state.can_move_top_left_to_column(2, 1), eq(false));
+        assert_that!(state.can_move_top_left_to_column(2, 2), eq(true));
+        assert_that!(state.can_move_top_left_to_column(2, 7), eq(true));
+
+        state.move_top_left_to_column(2, 2);
+        assert_that!(state.top_left_storage.len(), eq(2));
+        assert_that!(state.columns[2].len(), eq(2));
+        assert_that!(
+            state.columns[2].last().unwrap(),
+            eq(&Card {
+                suit: Red,
+                value: Some(8)
+            })
+        );
+    }
+
+    /*
+
+        def test_can_move_column_to_top_left(self) -> None:
+            state = GameState(
+                (
+                    [
+                        Card(Suit.RED, 9),
+                    ],
+                    [
+                        Card(Suit.RED, 8),
+                    ],
+                    [
+                        Card(Suit.RED, 7),
+                    ],
+                    [
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                        Card(Suit.RED, None),
+                    ],
+                    [],
+                    [],
+                    [],
+                    [],
+                ),
+                [
+                    Card(Suit.FACE_DOWN, None),
+                    Card(Suit.FACE_DOWN, None),
+                ],
+                [9, 6, 9, 9],
+            )
+
+            # Given a single empty slot in the top left
+            self.assertEqual(2, len(state.top_left_storage))
+
+            # Can't move if there is not any cards in the column
+            self.assertFalse(state.can_move_column_to_top_left(7))
+
+            # Can move if there is any card in the column
+            self.assertTrue(state.can_move_column_to_top_left(0))
+            self.assertTrue(state.can_move_column_to_top_left(1))
+            self.assertTrue(state.can_move_column_to_top_left(2))
+            self.assertTrue(state.can_move_column_to_top_left(3))
+
+            # Moving a card causes it to disappear from the column
+            moved_card = state.columns[0][-1]
+            state.move_column_to_top_left(0)
+            self.assertEqual(0, len(state.columns[0]))
+            # The top left storage should be filled up
+            self.assertEqual(3, len(state.top_left_storage))
+            # The moved card should appear in the top left
+            self.assertIn(moved_card, state.top_left_storage)
+
+            # Now that the top left is filled up, no cards can be moved there
+            self.assertFalse(state.can_move_column_to_top_left(1))
+
+    */
+    #[test]
+    fn test_can_move_column_to_top_left() {
+        let mut state = GameState {
+            columns: [
+                vec![Card {
+                    suit: Red,
+                    value: Some(9),
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: Some(8),
+                }],
+                vec![Card {
+                    suit: Red,
+                    value: Some(7),
+                }],
+                vec![
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                ],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+            ],
+            top_right_storage: [9, 6, 9, 9],
+        };
+
+        // given a single empty slot in the top left
+        assert_that!(state.top_left_storage.len(), eq(2));
+
+        // Can't move if there is not any cards in the column
+        assert_that!(state.can_move_column_to_top_left(7), eq(false));
+
+        // Can move if there is any card in the column
+        assert_that!(state.can_move_column_to_top_left(0), eq(true));
+        assert_that!(state.can_move_column_to_top_left(1), eq(true));
+        assert_that!(state.can_move_column_to_top_left(2), eq(true));
+        assert_that!(state.can_move_column_to_top_left(3), eq(true));
+
+        // Moving a card causes it to disappear from the column
+        let moved_card = state.columns[0].last().unwrap().clone();
+        state.move_column_to_top_left(0);
+        assert_that!(state.columns[0].len(), eq(0));
+        // The top left storage should be filled up
+        assert_that!(state.top_left_storage.len(), eq(3));
+        // The moved card should appear in the top left
+        assert_that!(state.top_left_storage, contains(eq(moved_card)));
+
+        // Now that the top left is filled up, no cards can be moved there
+        assert_that!(state.can_move_column_to_top_left(1), eq(false))
     }
 }

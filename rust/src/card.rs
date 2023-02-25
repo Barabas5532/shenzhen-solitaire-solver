@@ -1,3 +1,4 @@
+use crate::card::Suit::Special;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fmt::Formatter;
@@ -31,6 +32,34 @@ impl TryFrom<usize> for Suit {
 pub struct Card {
     pub suit: Suit,
     pub value: Option<u8>,
+}
+
+impl Card {
+    pub fn is_dragon(&self) -> bool {
+        self.value == None
+    }
+
+    pub fn can_be_moved_on_top_of(&self, other: &Self) -> bool {
+        if [self.suit, other.suit].contains(&Special) {
+            return false;
+        }
+
+        assert!([Suit::Black, Suit::Green, Suit::Red].contains(&self.suit));
+
+        // can't move on top of dragon
+        if other.is_dragon() {
+            return false;
+        }
+
+        // dragon can't go on top of any other card
+        if self.is_dragon() {
+            return false;
+        }
+
+        assert_ne!(other.value, None);
+
+        return self.suit != other.suit && self.value.unwrap() == other.value.unwrap() - 1;
+    }
 }
 
 impl fmt::Display for Card {
