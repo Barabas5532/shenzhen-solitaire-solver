@@ -4,23 +4,23 @@ use std::fmt::{write, Formatter};
 use std::{cmp, fmt};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct GameState {
+pub struct GameState {
     // scratch pad to temporarily store cards
     // a space is lost when dragons are stacked here, represented by a
     // Card(Suit.FACE_DOWN, None)
-    top_left_storage: Vec<Card>,
+    pub top_left_storage: Vec<Card>,
 
     // The aim of the game is to get all the cards stacked here
-    top_right_storage: [u8; 4],
+    pub top_right_storage: [u8; 4],
 
     // The main play area, where all of the cards are placed at the start
-    columns: [Vec<Card>; 8],
+    pub columns: [Vec<Card>; 8],
 }
 
-struct MoveColumnParameters {
-    from_column_index: usize,
-    to_column_index: usize,
-    stack_size: usize,
+pub struct MoveColumnParameters {
+    pub from_column_index: usize,
+    pub to_column_index: usize,
+    pub stack_size: usize,
 }
 
 impl GameState {
@@ -71,7 +71,7 @@ impl GameState {
         self.top_right_storage[card.suit as usize] = card.value.unwrap()
     }
 
-    fn can_move_top_left_to_top_right_storage(&self, top_left_index: usize) -> bool {
+    pub fn can_move_top_left_to_top_right_storage(&self, top_left_index: usize) -> bool {
         if self.top_left_storage.len() <= top_left_index {
             return false;
         }
@@ -84,14 +84,14 @@ impl GameState {
         }
     }
 
-    fn move_top_left_to_top_right_storage(&mut self, top_left_index: usize) {
+    pub fn move_top_left_to_top_right_storage(&mut self, top_left_index: usize) {
         let card = self.top_left_storage.remove(top_left_index);
         self.top_right_storage[card.suit as usize] = card
             .value
             .expect("must call can_move_to_top_right_storage first");
     }
 
-    fn can_move_top_left_to_column(&self, top_left_index: usize, column_index: usize) -> bool {
+    pub fn can_move_top_left_to_column(&self, top_left_index: usize, column_index: usize) -> bool {
         if top_left_index >= self.top_left_storage.len() {
             return false;
         }
@@ -117,21 +117,21 @@ impl GameState {
         card_to_move.can_be_moved_on_top_of(target_card)
     }
 
-    fn move_top_left_to_column(&mut self, top_left_index: usize, column_index: usize) {
+    pub fn move_top_left_to_column(&mut self, top_left_index: usize, column_index: usize) {
         self.columns[column_index].push(self.top_left_storage.remove(top_left_index))
     }
 
-    fn can_move_column_to_top_left(&self, column_index: usize) -> bool {
+    pub fn can_move_column_to_top_left(&self, column_index: usize) -> bool {
         !self.columns[column_index].is_empty() && self.top_left_storage.len() < 3
     }
 
-    fn move_column_to_top_left(&mut self, column_index: usize) {
+    pub fn move_column_to_top_left(&mut self, column_index: usize) {
         self.top_left_storage
             .push(self.columns[column_index].pop().unwrap());
         assert!(self.top_left_storage.len() <= 3);
     }
 
-    fn can_collect_dragons(&self, suit: Suit) -> bool {
+    pub fn can_collect_dragons(&self, suit: Suit) -> bool {
         if 3 == self
             .top_left_storage
             .iter()
@@ -161,7 +161,7 @@ impl GameState {
         free_dragon_count == 4
     }
 
-    fn collect_dragons(&mut self, suit: Suit) {
+    pub fn collect_dragons(&mut self, suit: Suit) {
         // This is always called after checking if this move is valid.
         // Therefore, we can just remove all the dragons and add a face down
         // card to the top left.
@@ -207,7 +207,7 @@ impl GameState {
         stack_size
     }
 
-    fn can_move_column_to_other_column(&self, p: MoveColumnParameters) -> bool {
+    pub fn can_move_column_to_other_column(&self, p: MoveColumnParameters) -> bool {
         let actual_stack_size = self.get_column_stack_size(p.from_column_index);
 
         // TODO this statement is redundant, stack size is always greater than
@@ -230,7 +230,7 @@ impl GameState {
         return stack_first_card.can_be_moved_on_top_of(target_card);
     }
 
-    fn move_column_to_other_column(&mut self, p: MoveColumnParameters) {
+    pub fn move_column_to_other_column(&mut self, p: MoveColumnParameters) {
         assert_ne!(p.from_column_index, p.to_column_index);
         let mid = cmp::max(p.from_column_index, p.to_column_index);
         let (left, right) = self.columns.split_at_mut(mid);
