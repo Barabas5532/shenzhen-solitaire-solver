@@ -674,62 +674,6 @@ mod test {
         );
     }
 
-    /*
-
-        def test_can_move_column_to_top_left(self) -> None:
-            state = GameState(
-                (
-                    [
-                        Card(Suit.RED, 9),
-                    ],
-                    [
-                        Card(Suit.RED, 8),
-                    ],
-                    [
-                        Card(Suit.RED, 7),
-                    ],
-                    [
-                        Card(Suit.RED, None),
-                        Card(Suit.RED, None),
-                        Card(Suit.RED, None),
-                    ],
-                    [],
-                    [],
-                    [],
-                    [],
-                ),
-                [
-                    Card(Suit.FACE_DOWN, None),
-                    Card(Suit.FACE_DOWN, None),
-                ],
-                [9, 6, 9, 9],
-            )
-
-            # Given a single empty slot in the top left
-            self.assertEqual(2, len(state.top_left_storage))
-
-            # Can't move if there is not any cards in the column
-            self.assertFalse(state.can_move_column_to_top_left(7))
-
-            # Can move if there is any card in the column
-            self.assertTrue(state.can_move_column_to_top_left(0))
-            self.assertTrue(state.can_move_column_to_top_left(1))
-            self.assertTrue(state.can_move_column_to_top_left(2))
-            self.assertTrue(state.can_move_column_to_top_left(3))
-
-            # Moving a card causes it to disappear from the column
-            moved_card = state.columns[0][-1]
-            state.move_column_to_top_left(0)
-            self.assertEqual(0, len(state.columns[0]))
-            # The top left storage should be filled up
-            self.assertEqual(3, len(state.top_left_storage))
-            # The moved card should appear in the top left
-            self.assertIn(moved_card, state.top_left_storage)
-
-            # Now that the top left is filled up, no cards can be moved there
-            self.assertFalse(state.can_move_column_to_top_left(1))
-
-    */
     #[test]
     fn test_can_move_column_to_top_left() {
         let mut state = GameState {

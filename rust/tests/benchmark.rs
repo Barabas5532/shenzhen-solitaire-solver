@@ -1,12 +1,12 @@
-use crate::card::{Card, Suit};
-use crate::game::{Game, GameMove};
-use crate::game_state::GameState;
+#![feature(test)]
 
-mod card;
-mod game;
-mod game_state;
+extern crate test;
 
-fn main() {
+use rust::*;
+use test::Bencher;
+
+#[bench]
+fn benchmark(b: &mut Bencher) {
     let states = [
         GameState {
             top_left_storage: vec![],
@@ -556,12 +556,7 @@ fn main() {
         },
     ];
 
-    for state in &states {
-        println!("{}", state);
-    }
-
-    // Extra iterations for more accurate profiling data
-    for _ in 0..100 {
+    b.iter(|| {
         for (i, state) in states.iter().enumerate() {
             let mut game = Game::new();
             let solution = game.play(state.clone());
@@ -576,13 +571,6 @@ fn main() {
                     println!("solution {} length {}", i, solution.len());
                 }
             }
-
-            // TODO write to file
-
-            /*
-            with open(f"solution{i}.txt", "w") as f:
-                f.write(f"{solution}")
-             */
         }
-    }
+    })
 }

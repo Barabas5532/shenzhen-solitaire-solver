@@ -5,7 +5,7 @@ use std::collections::{BinaryHeap, HashSet};
 use std::iter::zip;
 
 #[derive(Clone)]
-enum GameMove {
+pub enum GameMove {
     Start,
     ColumnToTopRightStorage {
         column: usize,
@@ -56,20 +56,20 @@ impl PartialOrd<Self> for PrioritisedGameState {
     }
 }
 
-struct Game {
+pub struct Game {
     open: BinaryHeap<PrioritisedGameState>,
     closed: HashSet<GameState>,
 }
 
 impl Game {
-    fn new() -> Game {
+    pub fn new() -> Game {
         Game {
             open: BinaryHeap::new(),
             closed: HashSet::new(),
         }
     }
 
-    fn play(&mut self, state: GameState) -> Option<Vec<(GameState, GameMove)>> {
+    pub fn play(&mut self, state: GameState) -> Option<Vec<(GameState, GameMove)>> {
         self.initialise(state);
 
         while !self.open.is_empty() {
@@ -218,7 +218,7 @@ impl Game {
 
         for i in 0..3 {
             if state_copy.can_move_top_left_to_top_right_storage(i) {
-                state_copy.can_move_top_left_to_top_right_storage(i);
+                state_copy.move_top_left_to_top_right_storage(i);
                 self.visit_node(
                     &state,
                     state_copy,
@@ -273,7 +273,7 @@ impl Game {
         // move a card from the centre to the storage area
         for column_index in 0..8 {
             if state_copy.can_move_column_to_top_left(column_index) {
-                state_copy.can_move_column_to_top_left(column_index);
+                state_copy.move_column_to_top_left(column_index);
                 self.visit_node(
                     &state,
                     state_copy,
@@ -289,7 +289,7 @@ impl Game {
         for top_left_index in 0..3 {
             for column_index in 0..8 {
                 if state_copy.can_move_top_left_to_column(top_left_index, column_index) {
-                    state_copy.can_move_top_left_to_column(top_left_index, column_index);
+                    state_copy.move_top_left_to_column(top_left_index, column_index);
                     self.visit_node(
                         &state,
                         state_copy,
