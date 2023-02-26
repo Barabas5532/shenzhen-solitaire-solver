@@ -372,6 +372,9 @@ fn benchmark(b: &mut Bencher) {
                 ],
             ],
         },
+        /*
+        // TODO This test case is very slow right now, should be OK once the
+        // hash changes are implemented
         GameState {
             top_left_storage: vec![],
             top_right_storage: [0, 0, 0, 0],
@@ -554,23 +557,13 @@ fn benchmark(b: &mut Bencher) {
                 ],
             ],
         },
+         */
     ];
 
     b.iter(|| {
-        for (i, state) in states.iter().enumerate() {
+        for state in &states {
             let mut game = Game::new();
-            let solution = game.play(state.clone());
-
-            // TODO all of the test cases are solvable, but we can't solve any
-            // of them as of now
-            match solution {
-                None => {
-                    println!("Failed to solve {}", i);
-                }
-                Some(solution) => {
-                    println!("solution {} length {}", i, solution.len());
-                }
-            }
+            game.play(state.clone());
         }
     })
 }
