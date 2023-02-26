@@ -15,3 +15,6 @@ googletest = "0.3.0"
 [[bench]]
 name = "benchmark"
 harness = false
+
+[dependencies]
+rustc-hash = "1.1.0"

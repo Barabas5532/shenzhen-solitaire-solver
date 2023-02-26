@@ -1,5 +1,6 @@
 use crate::card::*;
 use crate::game_state::*;
+use rustc_hash::FxHashSet;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
 use std::iter::zip;
@@ -58,14 +59,14 @@ impl PartialOrd<Self> for PrioritisedGameState {
 
 pub struct Game {
     open: BinaryHeap<PrioritisedGameState>,
-    closed: HashSet<GameState>,
+    closed: FxHashSet<GameState>,
 }
 
 impl Game {
     pub fn new() -> Game {
         Game {
             open: BinaryHeap::new(),
-            closed: HashSet::new(),
+            closed: FxHashSet::default(),
         }
     }
 
