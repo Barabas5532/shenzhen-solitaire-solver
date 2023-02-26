@@ -6,6 +6,7 @@ use std::iter::zip;
 
 #[derive(Clone)]
 enum GameMove {
+    Start,
     ColumnToTopRightStorage {
         column: usize,
     },
@@ -124,7 +125,11 @@ impl Game {
         let new_entry = PrioritisedGameState {
             priority: Self::heuristic(&state),
             path: vec![state.clone()],
-            moves: vec![],
+            // NOTE: slight difference from python here. There is no zip longest
+            // in rust, so instead we initialise this vector with a default
+            // value. This makes it the same length as path, so that regular zip
+            // works.
+            moves: vec![GameMove::Start],
             state,
         };
         self.open.push(new_entry)
@@ -299,5 +304,91 @@ impl Game {
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::card::Suit::{FaceDown, Red};
+    use googletest::assert_that;
+    use googletest::matchers::*;
+
+    fn solved() -> GameState {
+        GameState {
+            columns: [
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None
+                };
+                3
+            ],
+            top_right_storage: [1, 9, 9, 9],
+        }
+    }
+
+    fn almost_solved() -> GameState {
+        GameState {
+            columns: [
+                vec![Card {
+                    suit: Red,
+                    value: Some(9),
+                }],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ],
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None
+                };
+                3
+            ],
+            top_right_storage: [1, 8, 9, 9],
+        }
+    }
+
+    #[test]
+    fn test_is_solved() {
+        let solved = solved();
+        assert_that!(solved.is_solved(), eq(true));
+
+        // The base case
+        let mut game = Game::new();
+        let result = game.play(solved.clone());
+        assert_that!(result.is_none(), eq(false));
+        let result = result.unwrap();
+        assert_that!(result.len(), eq(1));
+        assert_that!(&result[0].0, eq(&solved));
+    }
+
+    #[test]
+    fn test_move_to_top_right_solve() {
+        let almost_solved = almost_solved();
+        assert_that!(almost_solved.is_solved(), eq(false));
+
+        // Solved after a single iteration
+        let mut game = Game::new();
+        let result = game.play(almost_solved.clone());
+        assert_that!(result.is_none(), eq(false));
+        let result = result.unwrap();
+        assert_that!(result.len(), eq(2));
+        assert_that!(&result[0].0, eq(&almost_solved));
+        assert_that!(result.last().unwrap().0.is_solved(), eq(true));
     }
 }
