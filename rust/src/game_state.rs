@@ -255,9 +255,13 @@ impl GameState {
 
 impl PartialEq<Self> for GameState {
     fn eq(&self, other: &Self) -> bool {
+        let mut top_left_storage = self.top_left_storage.clone();
+        top_left_storage.sort();
+        let mut other_top_left_storage = self.top_left_storage.clone();
+        other_top_left_storage.sort();
+
         // columns are sorted by the bottom card to try to prevent useless
         // moves moving stacks to another empty column
-
         let get_bottom_card = |col: &Vec<Card>| {
             *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
@@ -271,15 +275,19 @@ impl PartialEq<Self> for GameState {
         let mut other_columns = other.columns.clone();
         other_columns.sort_by(bottom_card_sort);
 
-        columns == other_columns
+        top_left_storage == other_top_left_storage
+            && columns == other_columns
+            && self.top_right_storage == other.top_right_storage
     }
 }
 
 impl Hash for GameState {
     fn hash<H: Hasher>(&self, state: &mut H) {
+        let mut top_left_storage = self.top_left_storage.clone();
+        top_left_storage.sort();
+
         // columns are sorted by the bottom card to try to prevent useless
         // moves moving stacks to another empty column
-
         let get_bottom_card = |col: &Vec<Card>| {
             *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
@@ -291,7 +299,7 @@ impl Hash for GameState {
         let mut columns = self.columns.clone();
         columns.sort_by(bottom_card_sort);
 
-        self.top_left_storage.hash(state);
+        top_left_storage.hash(state);
         self.top_right_storage.hash(state);
         columns.hash(state);
     }
@@ -561,46 +569,74 @@ mod test {
         assert_that!(hash_a, not(eq(hash_d)));
     }
 
-    /*
+    #[test]
+    fn test_hash_ignores_top_left_permutation() {
+        /* We should be able to optimize the exution time by detecting
+         * more identical cycles where the only difference is the permuation
+         * of the cards in the top left corner
+         *
+         * E.G. a position with the top left storage having
+         *
+         * 🟥x ⬛x 🟩3
+         *
+         * or
+         *
+         * 🟩3 🟥x ⬛x
+         *
+         * is identical from a gameplay perspective
+         */
+        let empty_columns = [
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+            vec![],
+        ];
 
-       def test_hash_ignores_top_left_permutions(self) -> None:
-           """We should be able to optimize the exution time by detecting
-           more identical cycles where the only difference is the permuation
-           of the cards in the top left corner
+        let a = GameState {
+            columns: empty_columns.clone(),
+            top_left_storage: vec![
+                Card {
+                    suit: Suit::Red,
+                    value: None,
+                },
+                Card {
+                    suit: Suit::Black,
+                    value: None,
+                },
+                Card {
+                    suit: Suit::Green,
+                    value: Some(3),
+                },
+            ],
+            top_right_storage: [0; 4],
+        };
 
-           E.G. a position with the top left storage having
+        let b = GameState {
+            columns: empty_columns,
+            top_left_storage: vec![
+                Card {
+                    suit: Suit::Green,
+                    value: Some(3),
+                },
+                Card {
+                    suit: Suit::Red,
+                    value: None,
+                },
+                Card {
+                    suit: Suit::Black,
+                    value: None,
+                },
+            ],
+            top_right_storage: [0; 4],
+        };
 
-           🟥x ⬛x 🟩3
-
-           or
-
-           🟩3 🟥x ⬛x
-
-           is identical from a gameplay perspective
-           """
-           empty_columns: Columns = ([], [], [], [], [], [], [], [])
-
-           a = GameState(
-               empty_columns,
-               [
-                   Card(Suit.RED, None),
-                   Card(Suit.BLACK, None),
-                   Card(Suit.GREEN, 3),
-               ],
-           )
-
-           b = GameState(
-               empty_columns,
-               [
-                   Card(Suit.GREEN, 3),
-                   Card(Suit.RED, None),
-                   Card(Suit.BLACK, None),
-               ],
-           )
-
-           self.assertEqual(hash(a), hash(b))
-
-    */
+        assert_that!(&a, eq(&b));
+        assert_that!(calculate_hash(&a), eq(calculate_hash(&b)));
+    }
 
     #[test]
     fn test_can_move_top_left_to_column() {
