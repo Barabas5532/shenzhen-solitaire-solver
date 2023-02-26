@@ -1,9 +1,10 @@
 use crate::card::Suit::FaceDown;
 use crate::card::*;
 use std::fmt::{write, Formatter};
+use std::hash::{Hash, Hasher};
 use std::{cmp, fmt};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub struct GameState {
     // scratch pad to temporarily store cards
     // a space is lost when dragons are stacked here, represented by a
@@ -252,45 +253,49 @@ impl GameState {
     }
 }
 
-/*
-   def _tuple(self) -> tuple:
-       tuple_column = [tuple(column) for column in self.columns]
-
-       # columns are sorted by the bottom card to try to prevent useless
-       # moves moving stacks to another empty column
-       tuple_column = sorted(
-           tuple_column,
-           key=lambda x: x[0] if len(x) != 0 else Card(Suit.SPECIAL, None),
-       )
-
-       return (
-           tuple(sorted(self.top_left_storage)),
-           tuple(tuple_column),
-           tuple(self.top_right_storage),
-       )
-*/
-
-/*
 impl PartialEq<Self> for GameState {
     fn eq(&self, other: &Self) -> bool {
         // columns are sorted by the bottom card to try to prevent useless
         // moves moving stacks to another empty column
 
         let get_bottom_card = |col: &Vec<Card>| {
-            col.first().unwrap_or(&Card {
+            *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
                 value: None,
             })
         };
         let bottom_card_sort =
-            |a: &Vec<Card>, b: &Vec<Card>| get_bottom_card(a).cmp(get_bottom_card(b));
-        let columns = self.columns.sort_by(bottom_card_sort);
-        let other_columns = other.columns.sort_by(bottom_card_sort);
+            |a: &Vec<Card>, b: &Vec<Card>| get_bottom_card(a).cmp(&get_bottom_card(b));
+        let mut columns = self.columns.clone();
+        columns.sort_by(bottom_card_sort);
+        let mut other_columns = other.columns.clone();
+        other_columns.sort_by(bottom_card_sort);
 
         columns == other_columns
     }
 }
- */
+
+impl Hash for GameState {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // columns are sorted by the bottom card to try to prevent useless
+        // moves moving stacks to another empty column
+
+        let get_bottom_card = |col: &Vec<Card>| {
+            *col.first().unwrap_or(&Card {
+                suit: Suit::Special,
+                value: None,
+            })
+        };
+        let bottom_card_sort =
+            |a: &Vec<Card>, b: &Vec<Card>| get_bottom_card(a).cmp(&get_bottom_card(b));
+        let mut columns = self.columns.clone();
+        columns.sort_by(bottom_card_sort);
+
+        self.top_left_storage.hash(state);
+        self.top_right_storage.hash(state);
+        columns.hash(state);
+    }
+}
 
 impl fmt::Display for GameState {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -545,9 +550,9 @@ mod test {
         let hash_c = calculate_hash(&state_c);
         let hash_d = calculate_hash(&state_d);
 
-        // TODO Permutations of columns should not effect equality and hash
-        // assert_that!(state_a, eq(state_b.clone()));
-        // assert_that!(hash_a, eq(hash_b));
+        // Permutations of columns should not effect equality and hash
+        assert_that!(state_a, eq(state_b.clone()));
+        assert_that!(hash_a, eq(hash_b));
 
         assert_that!(state_b, eq(state_c));
         assert_that!(hash_b, eq(hash_c));

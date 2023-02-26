@@ -560,29 +560,24 @@ fn main() {
         println!("{}", state);
     }
 
-    // Extra iterations for more accurate profiling data
-    for _ in 0..100 {
-        for (i, state) in states.iter().enumerate() {
-            let mut game = Game::new();
-            let solution = game.play(state.clone());
+    for (i, state) in states.iter().enumerate() {
+        let mut game = Game::new();
+        let solution = game.play(state.clone());
 
-            // TODO all of the test cases are solvable, but we can't solve any
-            // of them as of now
-            match solution {
-                None => {
-                    println!("Failed to solve {}", i);
-                }
-                Some(solution) => {
-                    println!("solution {} length {}", i, solution.len());
-                }
+        match solution {
+            None => {
+                println!("Failed to solve {}", i);
             }
-
-            // TODO write to file
-
-            /*
-            with open(f"solution{i}.txt", "w") as f:
-                f.write(f"{solution}")
-             */
+            Some(solution) => {
+                println!("solution {} length {}", i, solution.len());
+            }
         }
+
+        // TODO write to file
+
+        /*
+        with open(f"solution{i}.txt", "w") as f:
+            f.write(f"{solution}")
+         */
     }
 }

@@ -28,7 +28,7 @@ impl TryFrom<usize> for Suit {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Card {
     pub suit: Suit,
     pub value: Option<u8>,
