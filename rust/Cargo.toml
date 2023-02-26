@@ -1,0 +1,17 @@
+[package]
+name = "rust"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[profile.bench]
+debug = true
+
+[dev-dependencies]
+criterion = "0.4.0"
+googletest = "0.3.0"
+
+[[bench]]
+name = "benchmark"
+harness = false
