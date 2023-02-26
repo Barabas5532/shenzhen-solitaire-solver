@@ -1,12 +1,7 @@
-#![feature(test)]
-
-extern crate test;
-
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rust::*;
-use test::Bencher;
 
-#[bench]
-fn benchmark(b: &mut Bencher) {
+fn criterion_benchmark(c: &mut Criterion) {
     let states = [
         GameState {
             top_left_storage: vec![],
@@ -560,10 +555,15 @@ fn benchmark(b: &mut Bencher) {
          */
     ];
 
-    b.iter(|| {
-        for state in &states {
-            let mut game = Game::new();
-            game.play(state.clone());
-        }
-    })
+    c.bench_function("benchmark", |b| {
+        b.iter(|| {
+            for state in &states {
+                let mut game = Game::new();
+                game.play(black_box(state.clone()));
+            }
+        })
+    });
 }
+
+criterion_group!(benches, criterion_benchmark);
+criterion_main!(benches);

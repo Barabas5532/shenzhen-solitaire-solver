@@ -1,8 +1,8 @@
 use crate::card::Suit::Special;
-use std::collections::hash_map::DefaultHasher;
+
 use std::fmt;
 use std::fmt::Formatter;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub enum Suit {
@@ -88,6 +88,8 @@ mod tests {
     use super::*;
     use googletest::matchers::{eq, not};
     use googletest::{assert_that, pointwise};
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::Hasher;
 
     fn calculate_hash<T: Hash>(t: &T) -> u64 {
         let mut s = DefaultHasher::new();
