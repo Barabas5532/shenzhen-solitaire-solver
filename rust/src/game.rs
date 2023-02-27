@@ -1,8 +1,9 @@
 use crate::card::*;
 use crate::game_state::*;
+use im::{vector, Vector};
 use rustc_hash::FxHashSet;
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::BinaryHeap;
 use std::iter::zip;
 
 #[derive(Clone)]
@@ -34,8 +35,8 @@ pub enum GameMove {
 struct PrioritisedGameState {
     priority: i32,
     state: GameState,
-    path: Vec<GameState>,
-    moves: Vec<GameMove>,
+    path: Vector<GameState>,
+    moves: Vector<GameMove>,
 }
 
 impl Eq for PrioritisedGameState {}
@@ -70,7 +71,7 @@ impl Game {
         }
     }
 
-    pub fn play(&mut self, state: GameState) -> Option<Vec<(GameState, GameMove)>> {
+    pub fn play(&mut self, state: GameState) -> Option<Vector<(GameState, GameMove)>> {
         self.initialise(state);
 
         while !self.open.is_empty() {
@@ -125,12 +126,12 @@ impl Game {
         self.closed.insert(state.clone());
         let new_entry = PrioritisedGameState {
             priority: Self::heuristic(&state),
-            path: vec![state.clone()],
+            path: vector![state.clone()],
             // NOTE: slight difference from python here. There is no zip longest
             // in rust, so instead we initialise this vector with a default
             // value. This makes it the same length as path, so that regular zip
             // works.
-            moves: vec![GameMove::Start],
+            moves: vector![GameMove::Start],
             state,
         };
         self.open.push(new_entry)
@@ -144,17 +145,26 @@ impl Game {
             //
             // Even better, we could store a reference to the previous state and
             // just iterate the resulting linked list to find the path
+
+            let mut new_path = parent.path.clone();
+            new_path.push_back(state.clone());
+
+            let mut new_moves = parent.moves.clone();
+            new_moves.push_back(game_move);
             let new_entry = PrioritisedGameState {
                 priority: Self::heuristic(&state),
-                path: parent.path.iter().chain([&state]).cloned().collect(),
-                moves: parent.moves.iter().chain([&game_move]).cloned().collect(),
+                path: new_path,
+                moves: new_moves,
                 state,
             };
             self.open.push(new_entry);
         }
     }
 
-    fn expand_node(&mut self, state: PrioritisedGameState) -> Option<Vec<(GameState, GameMove)>> {
+    fn expand_node(
+        &mut self,
+        state: PrioritisedGameState,
+    ) -> Option<Vector<(GameState, GameMove)>> {
         // TODO we should make this more efficient by using a greedy algorithm
         //
         // That modification would expand a child node immediately if it has a
@@ -188,7 +198,7 @@ impl Game {
         //      sooner
 
         if state.state.is_solved() {
-            return Some(zip(state.path, state.moves).clone().collect());
+            return Some(zip(state.path, state.moves).collect());
         }
 
         // Use a copy so we can reset the state after each move

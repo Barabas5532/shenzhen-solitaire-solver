@@ -1,6 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use rust::*;
 
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 fn criterion_benchmark(c: &mut Criterion) {
     let states = [
         GameState {
@@ -367,9 +370,6 @@ fn criterion_benchmark(c: &mut Criterion) {
                 ],
             ],
         },
-        /*
-        // TODO This test case is very slow right now, should be OK once the
-        // hash changes are implemented
         GameState {
             top_left_storage: vec![],
             top_right_storage: [0, 0, 0, 0],
@@ -552,7 +552,6 @@ fn criterion_benchmark(c: &mut Criterion) {
                 ],
             ],
         },
-         */
     ];
 
     c.bench_function("benchmark", |b| {

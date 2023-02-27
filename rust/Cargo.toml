@@ -17,4 +17,6 @@ name = "benchmark"
 harness = false
 
 [dependencies]
+im = "15.1.0"
 rustc-hash = "1.1.0"
+tikv-jemallocator = "0.5.0"
