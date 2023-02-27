@@ -1,5 +1,5 @@
-use crate::card::Suit::FaceDown;
-use crate::card::*;
+use crate::card;
+use crate::card::{Card, Suit};
 use std::fmt::{write, Formatter};
 use std::hash::{Hash, Hasher};
 use std::{cmp, fmt};
@@ -8,7 +8,7 @@ use std::{cmp, fmt};
 pub struct GameState {
     // scratch pad to temporarily store cards
     // a space is lost when dragons are stacked here, represented by a
-    // Card(Suit.FACE_DOWN, None)
+    // Card(Suit.FACE_DOWN, card::DRAGON_VALUE)
     pub top_left_storage: Vec<Card>,
 
     // The aim of the game is to get all the cards stacked here
@@ -28,7 +28,7 @@ impl GameState {
     // All the columns in the centre have no cards
     pub fn is_solved(&self) -> bool {
         for column in &self.columns {
-            if column.len() != 0 {
+            if !column.is_empty() {
                 return false;
             }
         }
@@ -53,7 +53,7 @@ impl GameState {
     // TODO Suit.SPECIAL card can always be moved to storage, it's hardcoded to
     // have value of 1 for now
     pub fn can_move_column_to_top_right_storage(&self, column_index: usize) -> bool {
-        if self.columns[column_index].len() == 0 {
+        if self.columns[column_index].is_empty() {
             return false;
         }
 
@@ -62,7 +62,7 @@ impl GameState {
             .expect("Size was already check to be non-zero");
 
         match { card.value } {
-            DRAGON_VALUE => false,
+            card::DRAGON_VALUE => false,
             value => value == 1 || self.top_right_storage[card.suit as usize] == value - 1,
         }
     }
@@ -80,7 +80,7 @@ impl GameState {
         let card = &self.top_left_storage[top_left_index];
 
         match { card.value } {
-            DRAGON_VALUE => false,
+            card::DRAGON_VALUE => false,
             value => self.top_right_storage[card.suit as usize] == value - 1,
         }
     }
@@ -97,7 +97,7 @@ impl GameState {
 
         let card_to_move = &self.top_left_storage[top_left_index];
         // Can't move collected dragons
-        if card_to_move.suit == FaceDown {
+        if card_to_move.suit == Suit::FaceDown {
             return false;
         }
 
@@ -173,7 +173,7 @@ impl GameState {
 
         self.top_left_storage.push(Card {
             suit: Suit::FaceDown,
-            value: DRAGON_VALUE,
+            value: card::DRAGON_VALUE,
         });
         assert!(self.top_left_storage.len() <= 3)
     }
@@ -226,7 +226,7 @@ impl GameState {
         let column = &self.columns[p.from_column_index];
         let stack_first_card = &column[column.len() - p.stack_size];
         let target_card = self.columns[p.to_column_index].last().unwrap();
-        return stack_first_card.can_be_moved_on_top_of(target_card);
+        stack_first_card.can_be_moved_on_top_of(target_card)
     }
 
     pub fn move_column_to_other_column(&mut self, p: MoveColumnParameters) {
@@ -263,7 +263,7 @@ impl PartialEq<Self> for GameState {
         let get_bottom_card = |col: &Vec<Card>| {
             *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
-                value: DRAGON_VALUE,
+                value: card::DRAGON_VALUE,
             })
         };
         let bottom_card_sort =
@@ -289,7 +289,7 @@ impl Hash for GameState {
         let get_bottom_card = |col: &Vec<Card>| {
             *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
-                value: DRAGON_VALUE,
+                value: card::DRAGON_VALUE,
             })
         };
         let bottom_card_sort =
@@ -363,10 +363,10 @@ impl fmt::Display for GameState {
     }
 }
 
-/*
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::card;
     use crate::card::Suit::{Black, FaceDown, Green, Red, Special};
     use googletest::matchers::*;
     use googletest::*;
@@ -386,19 +386,19 @@ mod test {
                 vec![
                     Card {
                         suit: Red,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Green,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Black,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Special,
-                        value: Some(1),
+                        value: 1,
                     },
                 ],
                 vec![],
@@ -412,15 +412,15 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
             ],
             top_right_storage: [0, 8, 8, 8],
@@ -443,23 +443,23 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Red,
-                    value: Some(8),
+                    value: 8,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![],
                 vec![],
@@ -468,15 +468,15 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
             ],
             top_right_storage: [1, 7, 9, 9],
@@ -517,10 +517,10 @@ mod test {
 
         let mut a = empty_columns.clone();
 
-        let mut b = empty_columns.clone();
+        let mut b = empty_columns;
         b[1].push(Card {
             suit: Red,
-            value: Some(1),
+            value: 1,
         });
 
         let c = b.clone();
@@ -528,7 +528,7 @@ mod test {
         let d = a.clone();
         a[0].push(Card {
             suit: Red,
-            value: Some(1),
+            value: 1,
         });
 
         let state_a = GameState {
@@ -599,16 +599,16 @@ mod test {
             columns: empty_columns.clone(),
             top_left_storage: vec![
                 Card {
-                    suit: Suit::Red,
-                    value: None,
+                    suit: Red,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
-                    suit: Suit::Black,
-                    value: None,
+                    suit: Black,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
-                    suit: Suit::Green,
-                    value: Some(3),
+                    suit: Green,
+                    value: 3,
                 },
             ],
             top_right_storage: [0; 4],
@@ -618,16 +618,16 @@ mod test {
             columns: empty_columns,
             top_left_storage: vec![
                 Card {
-                    suit: Suit::Green,
-                    value: Some(3),
+                    suit: Green,
+                    value: 3,
                 },
                 Card {
-                    suit: Suit::Red,
-                    value: None,
+                    suit: Red,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
-                    suit: Suit::Black,
-                    value: None,
+                    suit: Black,
+                    value: card::DRAGON_VALUE,
                 },
             ],
             top_right_storage: [0; 4],
@@ -644,24 +644,24 @@ mod test {
                 vec![
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                 ],
                 vec![Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 }],
                 vec![Card {
                     suit: Green,
-                    value: Some(9),
+                    value: 9,
                 }],
                 vec![],
                 vec![],
@@ -672,15 +672,15 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: Green,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: Red,
-                    value: Some(8),
+                    value: 8,
                 },
             ],
             top_right_storage: [9, 8, 9, 9],
@@ -709,7 +709,7 @@ mod test {
             state.columns[2].last().unwrap(),
             eq(&Card {
                 suit: Red,
-                value: Some(8)
+                value: 8
             })
         );
     }
@@ -720,28 +720,28 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: Some(8),
+                    value: 8,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: Some(7),
+                    value: 7,
                 }],
                 vec![
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                 ],
                 vec![],
@@ -752,11 +752,11 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
             ],
             top_right_storage: [9, 6, 9, 9],
@@ -775,7 +775,7 @@ mod test {
         assert_that!(state.can_move_column_to_top_left(3), eq(true));
 
         // Moving a card causes it to disappear from the column
-        let moved_card = state.columns[0].last().unwrap().clone();
+        let moved_card = *state.columns[0].last().unwrap();
         state.move_column_to_top_left(0);
         assert_that!(state.columns[0].len(), eq(0));
         // The top left storage should be filled up
@@ -793,56 +793,56 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Green,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Green,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Green,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Green,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                 ],
                 vec![Card {
                     suit: Black,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![
                     Card {
                         suit: Black,
-                        value: None,
+                        value: card::DRAGON_VALUE,
                     },
                     Card {
                         suit: Red,
-                        value: Some(9),
+                        value: 9,
                     },
                 ],
                 vec![Card {
                     suit: Black,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
             ],
             top_left_storage: vec![Card {
                 suit: Red,
-                value: None,
+                value: card::DRAGON_VALUE,
             }],
             top_right_storage: [1, 8, 9, 9],
         };
@@ -851,7 +851,7 @@ mod test {
         assert_that!(state.can_collect_dragons(Red), eq(false));
         assert_that!(state.can_collect_dragons(Black), eq(false));
 
-        state.collect_dragons(Suit::Green);
+        state.collect_dragons(Green);
         assert_that!(state.columns[0].is_empty(), eq(true));
         assert_that!(state.columns[1].is_empty(), eq(true));
         assert_that!(state.columns[2].is_empty(), eq(true));
@@ -859,20 +859,20 @@ mod test {
         assert_that!(
             state.top_left_storage.contains(&Card {
                 suit: FaceDown,
-                value: None
+                value: card::DRAGON_VALUE
             }),
             eq(true)
         );
         assert_that!(
             state.top_left_storage.contains(&Card {
                 suit: Red,
-                value: None
+                value: card::DRAGON_VALUE
             }),
             eq(true)
         );
         assert_that!(state.top_left_storage.len(), eq(2));
 
-        state.collect_dragons(Suit::Red);
+        state.collect_dragons(Red);
         assert_that!(state.columns[4].is_empty(), eq(true));
         assert_that!(state.top_left_storage.len(), eq(2));
     }
@@ -883,46 +883,46 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Red,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![],
                 vec![Card {
                     suit: Black,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Black,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
                 vec![Card {
                     suit: Black,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 }],
             ],
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 },
                 Card {
                     suit: Black,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
             ],
             top_right_storage: [1, 8, 9, 9],
@@ -940,7 +940,7 @@ mod test {
             assert_that!(
                 column.contains(&Card {
                     suit: Black,
-                    value: None
+                    value: card::DRAGON_VALUE
                 }),
                 eq(false)
             );
@@ -953,34 +953,34 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 }],
                 vec![
                     Card {
                         suit: Green,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Black,
-                        value: Some(7),
+                        value: 7,
                     },
                 ],
                 vec![Card {
                     suit: Red,
-                    value: Some(8),
+                    value: 8,
                 }],
                 vec![
                     Card {
                         suit: Black,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Green,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Black,
-                        value: Some(8),
+                        value: 8,
                     },
                 ],
                 vec![],
@@ -991,15 +991,15 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
                 Card {
                     suit: FaceDown,
-                    value: None,
+                    value: card::DRAGON_VALUE,
                 },
             ],
             top_right_storage: [1, 7, 7, 6],
@@ -1036,7 +1036,7 @@ mod test {
             eq(true)
         );
         let mut state_copy = state.clone();
-        let card_to_move = state_copy.columns[0].last().unwrap().clone();
+        let card_to_move = *state_copy.columns[0].last().unwrap();
         state_copy.move_column_to_other_column(MoveColumnParameters {
             from_column_index: 0,
             to_column_index: 7,
@@ -1066,7 +1066,7 @@ mod test {
             }),
             eq(true)
         );
-        let mut state_copy = state.clone();
+        let mut state_copy = state;
         let cards_to_move = &state_copy.columns[1][state_copy.columns[1].len() - 2..].to_vec();
         state_copy.move_column_to_other_column(MoveColumnParameters {
             from_column_index: 1,
@@ -1083,6 +1083,3 @@ mod test {
         }
     }
 }
-
-
- */

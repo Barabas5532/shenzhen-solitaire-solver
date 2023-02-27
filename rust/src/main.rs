@@ -1,4 +1,4 @@
-use crate::card::{Card, Suit};
+use crate::card::{Card, Suit, DRAGON_VALUE};
 use crate::game::{Game, GameMove};
 use crate::game_state::GameState;
 
@@ -7,7 +7,6 @@ mod game;
 mod game_state;
 
 fn main() {
-    /*
     let states = [
         GameState {
             top_left_storage: vec![],
@@ -16,177 +15,177 @@ fn main() {
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(6),
+                        value: 6,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(4),
+                        value: 4,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(3),
+                        value: 3,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(3),
+                        value: 3,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Special,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(6),
+                        value: 6,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(6),
+                        value: 6,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(8),
+                        value: 8,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(3),
+                        value: 3,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                 ],
             ],
@@ -198,177 +197,177 @@ fn main() {
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(6),
+                        value: 6,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Red,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(3),
+                        value: 3,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(6),
+                        value: 6,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(2),
+                        value: 2,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(3),
+                        value: 3,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Special,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(4),
+                        value: 4,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(6),
+                        value: 6,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(3),
+                        value: 3,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(8),
+                        value: 8,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(9),
+                        value: 9,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                 ],
             ],
@@ -380,177 +379,177 @@ fn main() {
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(7),
+                        value: 7,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Red,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(4),
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(6),
+                        value: 6,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(3),
+                        value: 3,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(7),
+                        value: 7,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Special,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(9),
+                        value: 9,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(3),
+                        value: 3,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: Some(3),
+                        value: 3,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(1),
+                        value: 1,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(7),
+                        value: 7,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(2),
+                        value: 2,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(8),
+                        value: 8,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Green,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(9),
+                        value: 9,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: 5,
                     },
                 ],
                 vec![
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: DRAGON_VALUE,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(6),
+                        value: 6,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(8),
+                        value: 8,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: Some(6),
+                        value: 6,
                     },
                 ],
             ],
@@ -581,6 +580,4 @@ fn main() {
             f.write(f"{solution}")
          */
     }
-
-     */
 }

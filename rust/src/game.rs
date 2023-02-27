@@ -34,7 +34,8 @@ pub enum GameMove {
     },
 }
 
-struct PrioritisedGameState {
+#[derive(Clone)]
+pub struct PrioritisedGameState {
     priority: i32,
     /// The current state of the game
     state: GameState,
@@ -110,7 +111,7 @@ impl Game {
         }
     }
 
-    pub fn play(&mut self, state: GameState) -> Option<()> {
+    pub fn play(&mut self, state: GameState) -> Option<PrioritisedGameState> {
         self.initialise(state);
 
         while !self.open.is_empty() {
@@ -190,7 +191,7 @@ impl Game {
         }
     }
 
-    fn expand_node(&mut self, state: Rc<PrioritisedGameState>) -> Option<()> {
+    fn expand_node(&mut self, state: Rc<PrioritisedGameState>) -> Option<PrioritisedGameState> {
         // TODO we should make this more efficient by using a greedy algorithm
         //
         // That modification would expand a child node immediately if it has a
@@ -224,15 +225,7 @@ impl Game {
         //      sooner
 
         if state.state.is_solved() {
-            return Some(
-                (), /*
-                    zip(
-                        state.iter().map(|s| s.state.clone()),
-                        state.iter().map(|s| s.game_move.clone()),
-                    )
-                    .collect(),
-                     */
-            );
+            return Some((*state).clone());
         }
 
         // Use a copy so we can reset the state after each move
@@ -408,7 +401,6 @@ mod test {
         }
     }
 
-    /*
     #[test]
     fn test_is_solved() {
         let solved = solved();
@@ -419,8 +411,8 @@ mod test {
         let result = game.play(solved.clone());
         assert_that!(result.is_none(), eq(false));
         let result = result.unwrap();
-        assert_that!(result.len(), eq(1));
-        assert_that!(&result[0].0, eq(&solved));
+        assert_that!(result.parent.is_none(), eq(true));
+        assert_that!(&result.state, eq(&solved));
     }
 
     #[test]
@@ -433,10 +425,8 @@ mod test {
         let result = game.play(almost_solved.clone());
         assert_that!(result.is_none(), eq(false));
         let result = result.unwrap();
-        assert_that!(result.len(), eq(2));
-        assert_that!(&result[0].0, eq(&almost_solved));
-        assert_that!(result.last().unwrap().0.is_solved(), eq(true));
+        assert_that!(result.parent.is_none(), eq(false));
+        assert_that!(&result.parent.unwrap().state, eq(&almost_solved));
+        assert_that!(result.state.is_solved(), eq(true));
     }
-
-     */
 }

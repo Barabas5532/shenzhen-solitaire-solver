@@ -2,7 +2,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::hash::Hash;
 
-pub const DRAGON_VALUE: u8 = 0xFF;
+pub const DRAGON_VALUE: u8 = 0;
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub enum Suit {
@@ -65,8 +65,6 @@ impl Card {
 
         assert_ne!(other.value, DRAGON_VALUE);
 
-        // TODO this is already always false for dragon to dragon and dragon to
-        // any card, so we can skip the earlier checks?
         return self.suit != other.suit && self.value == other.value - 1;
     }
 }
