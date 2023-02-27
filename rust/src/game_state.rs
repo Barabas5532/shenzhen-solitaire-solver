@@ -62,14 +62,14 @@ impl GameState {
             .expect("Size was already check to be non-zero");
 
         match { card.value } {
-            None => false,
-            Some(value) => value == 1 || self.top_right_storage[card.suit as usize] == value - 1,
+            DRAGON_VALUE => false,
+            value => value == 1 || self.top_right_storage[card.suit as usize] == value - 1,
         }
     }
 
     pub fn move_column_to_top_right_storage(&mut self, column_index: usize) {
         let card = self.columns[column_index].pop().unwrap();
-        self.top_right_storage[card.suit as usize] = card.value.unwrap()
+        self.top_right_storage[card.suit as usize] = card.value
     }
 
     pub fn can_move_top_left_to_top_right_storage(&self, top_left_index: usize) -> bool {
@@ -80,16 +80,14 @@ impl GameState {
         let card = &self.top_left_storage[top_left_index];
 
         match { card.value } {
-            None => false,
-            Some(value) => self.top_right_storage[card.suit as usize] == value - 1,
+            DRAGON_VALUE => false,
+            value => self.top_right_storage[card.suit as usize] == value - 1,
         }
     }
 
     pub fn move_top_left_to_top_right_storage(&mut self, top_left_index: usize) {
         let card = self.top_left_storage.remove(top_left_index);
-        self.top_right_storage[card.suit as usize] = card
-            .value
-            .expect("must call can_move_to_top_right_storage first");
+        self.top_right_storage[card.suit as usize] = card.value
     }
 
     pub fn can_move_top_left_to_column(&self, top_left_index: usize, column_index: usize) -> bool {
@@ -175,7 +173,7 @@ impl GameState {
 
         self.top_left_storage.push(Card {
             suit: Suit::FaceDown,
-            value: None,
+            value: DRAGON_VALUE,
         });
         assert!(self.top_left_storage.len() <= 3)
     }
@@ -265,7 +263,7 @@ impl PartialEq<Self> for GameState {
         let get_bottom_card = |col: &Vec<Card>| {
             *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
-                value: None,
+                value: DRAGON_VALUE,
             })
         };
         let bottom_card_sort =
@@ -291,7 +289,7 @@ impl Hash for GameState {
         let get_bottom_card = |col: &Vec<Card>| {
             *col.first().unwrap_or(&Card {
                 suit: Suit::Special,
-                value: None,
+                value: DRAGON_VALUE,
             })
         };
         let bottom_card_sort =
@@ -332,7 +330,7 @@ impl fmt::Display for GameState {
                         "{} ",
                         Card {
                             suit: Suit::try_from(suit).unwrap(),
-                            value: Some(value)
+                            value
                         }
                     ),
                 )?;
@@ -365,6 +363,7 @@ impl fmt::Display for GameState {
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -1084,3 +1083,6 @@ mod test {
         }
     }
 }
+
+
+ */

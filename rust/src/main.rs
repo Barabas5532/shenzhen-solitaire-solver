@@ -7,6 +7,7 @@ mod game;
 mod game_state;
 
 fn main() {
+    /*
     let states = [
         GameState {
             top_left_storage: vec![],
@@ -580,4 +581,6 @@ fn main() {
             f.write(f"{solution}")
          */
     }
+
+     */
 }

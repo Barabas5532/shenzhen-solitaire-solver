@@ -374,7 +374,7 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None
+                    value: DRAGON_VALUE
                 };
                 3
             ],
@@ -387,7 +387,7 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 }],
                 vec![],
                 vec![],
@@ -400,7 +400,7 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None
+                    value: DRAGON_VALUE
                 };
                 3
             ],
