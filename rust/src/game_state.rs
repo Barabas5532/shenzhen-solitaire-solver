@@ -179,6 +179,7 @@ impl GameState {
         assert!(self.top_left_storage.len() <= 3)
     }
 
+    #[inline(always)]
     fn get_column_stack_size(&self, column_index: usize) -> usize {
         if self.columns[column_index].is_empty() {
             return 0;

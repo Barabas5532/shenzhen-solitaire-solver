@@ -46,6 +46,7 @@ impl Card {
         }
     }
 
+    #[inline(always)]
     pub fn can_be_moved_on_top_of(&self, other: &Self) -> bool {
         if [self.suit, other.suit].contains(&Suit::Special) {
             return false;
@@ -65,7 +66,7 @@ impl Card {
 
         assert_ne!(other.value, DRAGON_VALUE);
 
-        return self.suit != other.suit && self.value == other.value - 1;
+        self.suit != other.suit && self.value == other.value - 1
     }
 }
 
