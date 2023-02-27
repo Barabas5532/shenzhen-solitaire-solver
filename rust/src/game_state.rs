@@ -13,7 +13,7 @@ pub struct GameState {
     pub top_left_storage: Vec<Card>,
 
     // The aim of the game is to get all the cards stacked here
-    pub top_right_storage: [u8; 4],
+    pub top_right_storage: [i32; 4],
 
     // The main play area, where all of the cards are placed at the start
     pub columns: [Vec<Card>; 8],
@@ -64,7 +64,7 @@ impl GameState {
 
         match { card.value } {
             card::DRAGON_VALUE => false,
-            value => value == 1 || self.top_right_storage[card.suit as usize] == value - 1,
+            value => value == 1 || self.top_right_storage[card.suit as usize] + 1 == value,
         }
     }
 
@@ -223,15 +223,19 @@ impl GameState {
         // get_column_stack_size
         let stack_first_card = &column[column.len() - p.stack_size];
         let stack_last_card = &column[column.len() - 1];
-        if stack_first_card.value != stack_last_card.value + (p.stack_size as u8 - 1) {
+        if stack_first_card.value != stack_last_card.value + (p.stack_size as i32 - 1) {
             return false;
         }
 
         // If the stack size is greater than the possible stack size for the
         // card, then we are surely not able to move this stack. Avoid expensive
         // call to get_column_stack_size
-        let max_stack_size = 10 - stack_last_card.value;
-        if max_stack_size < (p.stack_size as u8 - 1) {
+        let max_stack_size = if stack_last_card.value == card::DRAGON_VALUE {
+            1
+        } else {
+            10 - stack_last_card.value
+        };
+        if max_stack_size < (p.stack_size as i32) {
             return false;
         }
 

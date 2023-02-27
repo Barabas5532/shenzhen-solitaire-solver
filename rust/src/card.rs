@@ -2,7 +2,7 @@ use std::fmt;
 use std::fmt::Formatter;
 use std::hash::Hash;
 
-pub const DRAGON_VALUE: u8 = 0;
+pub const DRAGON_VALUE: i32 = i32::MIN;
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub enum Suit {
@@ -31,7 +31,7 @@ impl TryFrom<usize> for Suit {
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Card {
     pub suit: Suit,
-    pub value: u8,
+    pub value: i32,
 }
 
 impl Card {
@@ -54,19 +54,7 @@ impl Card {
 
         assert!([Suit::Black, Suit::Green, Suit::Red].contains(&self.suit));
 
-        // can't move on top of dragon
-        if other.is_dragon() {
-            return false;
-        }
-
-        // dragon can't go on top of any other card
-        if self.is_dragon() {
-            return false;
-        }
-
-        assert_ne!(other.value, DRAGON_VALUE);
-
-        self.suit != other.suit && self.value == other.value - 1
+        self.suit != other.suit && self.value + 1 == other.value
     }
 }
 
