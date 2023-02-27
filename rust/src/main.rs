@@ -569,7 +569,7 @@ fn main() {
                 println!("Failed to solve {}", i);
             }
             Some(solution) => {
-                println!("solution {} length {}", i, solution.len());
+                //println!("solution {} length {}", i, solution.len());
             }
         }
 
