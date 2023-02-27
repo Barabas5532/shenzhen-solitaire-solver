@@ -67,7 +67,7 @@ impl fmt::Display for Card {
                 "{}{}",
                 colors[self.suit as usize],
                 match { self.value } {
-                    0xFF => String::from("x"),
+                    DRAGON_VALUE => String::from("x"),
                     value => format!("{}", value),
                 }
             ),
