@@ -1,5 +1,6 @@
 use crate::card;
 use crate::card::{Card, Suit};
+use std::cmp::max;
 use std::fmt::{write, Formatter};
 use std::hash::{Hash, Hasher};
 use std::{cmp, fmt};
@@ -184,36 +185,59 @@ impl GameState {
         }
 
         let mut stack_size = 1;
-
         let column = &self.columns[column_index];
-        for (i, card) in column.iter().enumerate() {
+        for (i, card) in column.iter().rev().enumerate() {
             if i + 1 == column.len() {
                 break;
             }
 
-            let next_card = &column[i + 1];
+            let next_card = &column[column.len() - 2 - i];
 
             // TODO doing this loop from the back might get better performance.
             // We can stop at the first card that is not part of the stack
             // instead of checking all the cards.
-            if next_card.can_be_moved_on_top_of(card) {
+            if card.can_be_moved_on_top_of(next_card) {
                 stack_size += 1;
             } else {
-                stack_size = 1;
+                break;
             }
         }
 
         stack_size
     }
 
+    #[inline(always)]
     pub fn can_move_column_to_other_column(&self, p: MoveColumnParameters) -> bool {
-        let actual_stack_size = self.get_column_stack_size(p.from_column_index);
-
-        // TODO this statement is redundant, stack size is always greater than
-        //      zero. Remove once we have enough test coverage
-        if actual_stack_size == 0 {
+        let column = &self.columns[p.from_column_index];
+        if column.is_empty() {
             return false;
         }
+
+        if p.stack_size > column.len() {
+            return false;
+        }
+
+        // If the first card of the stack does not have the expected value, then
+        // we are surely not able to move this stack. Avoid expensive call to
+        // get_column_stack_size
+        let stack_first_card = &column[column.len() - p.stack_size];
+        let stack_last_card = &column[column.len() - 1];
+        if stack_first_card.value != stack_last_card.value + (p.stack_size as u8 - 1) {
+            return false;
+        }
+
+        // If the stack size is greater than the possible stack size for the
+        // card, then we are surely not able to move this stack. Avoid expensive
+        // call to get_column_stack_size
+        let max_stack_size = 10 - stack_last_card.value;
+        if max_stack_size < (p.stack_size as u8 - 1) {
+            return false;
+        }
+
+        // TODO maybe making this call cache results, and invalidate on moving
+        // cards from or to that column is more efficient than all these early
+        // returns
+        let actual_stack_size = self.get_column_stack_size(p.from_column_index);
 
         if p.stack_size > actual_stack_size {
             return false;
@@ -223,8 +247,6 @@ impl GameState {
             return true;
         }
 
-        let column = &self.columns[p.from_column_index];
-        let stack_first_card = &column[column.len() - p.stack_size];
         let target_card = self.columns[p.to_column_index].last().unwrap();
         stack_first_card.can_be_moved_on_top_of(target_card)
     }
