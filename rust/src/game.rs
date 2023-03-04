@@ -105,10 +105,11 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Game {
-        Game {
-            open: BinaryHeap::new(),
-            closed: FxHashSet::default(),
-        }
+        let mut open = BinaryHeap::default();
+        open.reserve(64);
+        let mut closed = FxHashSet::default();
+        closed.reserve(64);
+        Game { open, closed }
     }
 
     pub fn play(&mut self, state: GameState) -> Option<PrioritisedGameState> {
