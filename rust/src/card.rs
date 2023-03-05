@@ -1,6 +1,6 @@
 use std::fmt;
 use std::fmt::Formatter;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
 
 pub const DRAGON_VALUE: i32 = i32::MIN;
 
@@ -28,11 +28,19 @@ impl TryFrom<usize> for Suit {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Card {
     pub suit: Suit,
     pub value: i32,
 }
+
+impl Hash for Card {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u8(self.value as u8 | ((self.suit as u8) << 4));
+    }
+}
+
+impl nohash_hasher::IsEnabled for Card {}
 
 impl Card {
     pub fn is_dragon(&self) -> bool {
