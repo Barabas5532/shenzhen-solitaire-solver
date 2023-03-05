@@ -1,13 +1,17 @@
 use crate::card::*;
 use crate::game_state::*;
 use im::{vector, Vector};
+use parking_lot::ReentrantMutex;
+use rayon::prelude::*;
 use rustc_hash::FxHashSet;
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::iter::zip;
 use std::marker::PhantomData;
+use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub enum GameMove {
@@ -100,8 +104,8 @@ impl PartialOrd<Self> for PrioritisedGameState {
 }
 
 pub struct Game {
-    open: BinaryHeap<PrioritisedGameState>,
-    closed: FxHashSet<GameState>,
+    open: Arc<ReentrantMutex<RefCell<BinaryHeap<PrioritisedGameState>>>>,
+    closed: Arc<ReentrantMutex<RefCell<FxHashSet<GameState>>>>,
     jobs: u32,
 }
 
@@ -111,26 +115,30 @@ impl Game {
         open.reserve(64);
         let mut closed = FxHashSet::default();
         closed.reserve(64);
-        Game { open, closed, jobs }
+        Game {
+            open: Arc::new(ReentrantMutex::new(RefCell::new(open))),
+            closed: Arc::new(ReentrantMutex::new(RefCell::new(closed))),
+            jobs,
+        }
     }
 
     pub fn play(&mut self, state: GameState) -> Option<PrioritisedGameState> {
         self.initialise(state);
 
-        while !self.open.is_empty() {
+        while !self.open.lock().borrow().is_empty() {
             let mut head: Vec<PrioritisedGameState> = vec![];
             for _ in 0..self.jobs {
-                head.push(self.open.pop().unwrap());
+                head.push(self.open.lock().borrow_mut().pop().unwrap());
 
-                if self.open.is_empty() {
+                if self.open.lock().borrow().is_empty() {
                     break;
                 }
             }
 
             // This is the bit that can be parallelised
-            let mut solutions = head.iter().map(|state| self.expand_node(state.clone()));
+            let mut solutions = head.par_iter().map(|state| self.expand_node(state.clone()));
 
-            if let Some(Some(solution)) = solutions.find(|solution| solution.is_some()) {
+            if let Some(Some(solution)) = solutions.find_any(|solution| solution.is_some()) {
                 return Some(solution);
             }
         }
@@ -173,33 +181,43 @@ impl Game {
     }
 
     fn initialise(&mut self, state: GameState) {
-        assert!(self.open.is_empty());
-        assert!(self.closed.is_empty());
+        let closed_mutex_guard = (*self.closed).lock();
+        let mut closed = closed_mutex_guard.borrow_mut();
+        let open_mutex_guard = (*self.open).lock();
+        let mut open = open_mutex_guard.borrow_mut();
 
-        self.closed.insert(state.clone());
+        assert!(open.is_empty());
+        assert!(closed.is_empty());
+
+        closed.insert(state.clone());
         let new_entry = PrioritisedGameState {
             priority: Self::heuristic(&state),
             parent: None,
             game_move: GameMove::Start,
             state,
         };
-        self.open.push(new_entry)
+        open.push(new_entry)
     }
 
-    fn visit_node(&mut self, parent: PrioritisedGameState, state: GameState, game_move: GameMove) {
-        if !self.closed.contains(&state) {
-            self.closed.insert(state.clone());
+    fn visit_node(&self, parent: PrioritisedGameState, state: GameState, game_move: GameMove) {
+        let closed_mutex_guard = (*self.closed).lock();
+        let mut closed = closed_mutex_guard.borrow_mut();
+        let open_mutex_guard = (*self.open).lock();
+        let mut open = open_mutex_guard.borrow_mut();
+
+        if !closed.contains(&state) {
+            closed.insert(state.clone());
             let new_entry = PrioritisedGameState {
                 priority: Self::heuristic(&state),
                 parent: Some(Arc::new(parent.clone())),
                 game_move,
                 state,
             };
-            self.open.push(new_entry);
+            open.push(new_entry);
         }
     }
 
-    fn expand_node(&mut self, state: PrioritisedGameState) -> Option<PrioritisedGameState> {
+    fn expand_node(&self, state: PrioritisedGameState) -> Option<PrioritisedGameState> {
         // TODO we should make this more efficient by using a greedy algorithm
         //
         // That modification would expand a child node immediately if it has a

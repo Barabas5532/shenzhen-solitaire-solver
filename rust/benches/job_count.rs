@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use rust::*;
 
 #[global_allocator]
@@ -555,17 +555,20 @@ fn get_states() -> [GameState; 3] {
     ]
 }
 
-fn benchmark(c: &mut Criterion) {
+fn job_count(c: &mut Criterion) {
     let states = get_states();
-    c.bench_function("benchmark", |b| {
-        b.iter(|| {
-            for state in &states {
-                let mut game = Game::new(4);
-                game.play(black_box(state.clone()));
-            }
-        })
-    });
+    let mut group = c.benchmark_group("job_count");
+    for jobs in [1, 2, 4, 8, 16, 32, 64].iter() {
+        group.bench_with_input(BenchmarkId::from_parameter(jobs), jobs, |b, &jobs| {
+            b.iter(|| {
+                for state in &states {
+                    let mut game = Game::new(jobs);
+                    game.play(black_box(state.clone()));
+                }
+            })
+        });
+    }
 }
 
-criterion_group!(benches, benchmark);
+criterion_group!(benches, job_count);
 criterion_main!(benches);
