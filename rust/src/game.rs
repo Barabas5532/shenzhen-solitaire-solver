@@ -7,6 +7,7 @@ use std::collections::BinaryHeap;
 use std::iter::zip;
 use std::marker::PhantomData;
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub enum GameMove {
@@ -40,7 +41,7 @@ pub struct PrioritisedGameState {
     /// The current state of the game
     state: GameState,
     /// The previous state of the game
-    parent: Option<Rc<PrioritisedGameState>>,
+    parent: Option<Arc<PrioritisedGameState>>,
     /// The move that got the game into the current state
     game_move: GameMove,
 }
@@ -99,27 +100,38 @@ impl PartialOrd<Self> for PrioritisedGameState {
 }
 
 pub struct Game {
-    open: BinaryHeap<Rc<PrioritisedGameState>>,
+    open: BinaryHeap<PrioritisedGameState>,
     closed: FxHashSet<GameState>,
+    jobs: u32,
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn new(jobs: u32) -> Game {
         let mut open = BinaryHeap::default();
         open.reserve(64);
         let mut closed = FxHashSet::default();
         closed.reserve(64);
-        Game { open, closed }
+        Game { open, closed, jobs }
     }
 
     pub fn play(&mut self, state: GameState) -> Option<PrioritisedGameState> {
         self.initialise(state);
 
         while !self.open.is_empty() {
-            let head = self.open.pop().unwrap();
-            let solution = self.expand_node(head);
-            if solution.is_some() {
-                return solution;
+            let mut head: Vec<PrioritisedGameState> = vec![];
+            for _ in 0..self.jobs {
+                head.push(self.open.pop().unwrap());
+
+                if self.open.is_empty() {
+                    break;
+                }
+            }
+
+            // This is the bit that can be parallelised
+            let mut solutions = head.iter().map(|state| self.expand_node(state.clone()));
+
+            if let Some(Some(solution)) = solutions.find(|solution| solution.is_some()) {
+                return Some(solution);
             }
         }
 
@@ -171,28 +183,23 @@ impl Game {
             game_move: GameMove::Start,
             state,
         };
-        self.open.push(Rc::new(new_entry))
+        self.open.push(new_entry)
     }
 
-    fn visit_node(
-        &mut self,
-        parent: Rc<PrioritisedGameState>,
-        state: GameState,
-        game_move: GameMove,
-    ) {
+    fn visit_node(&mut self, parent: PrioritisedGameState, state: GameState, game_move: GameMove) {
         if !self.closed.contains(&state) {
             self.closed.insert(state.clone());
             let new_entry = PrioritisedGameState {
                 priority: Self::heuristic(&state),
-                parent: Some(parent),
+                parent: Some(Arc::new(parent.clone())),
                 game_move,
                 state,
             };
-            self.open.push(Rc::new(new_entry));
+            self.open.push(new_entry);
         }
     }
 
-    fn expand_node(&mut self, state: Rc<PrioritisedGameState>) -> Option<PrioritisedGameState> {
+    fn expand_node(&mut self, state: PrioritisedGameState) -> Option<PrioritisedGameState> {
         // TODO we should make this more efficient by using a greedy algorithm
         //
         // That modification would expand a child node immediately if it has a
@@ -226,7 +233,7 @@ impl Game {
         //      sooner
 
         if state.state.is_solved() {
-            return Some((*state).clone());
+            return Some(state.clone());
         }
 
         // Use a copy so we can reset the state after each move
@@ -408,7 +415,7 @@ mod test {
         assert_that!(solved.is_solved(), eq(true));
 
         // The base case
-        let mut game = Game::new();
+        let mut game = Game::new(1);
         let result = game.play(solved.clone());
         assert_that!(result.is_none(), eq(false));
         let result = result.unwrap();
@@ -422,7 +429,7 @@ mod test {
         assert_that!(almost_solved.is_solved(), eq(false));
 
         // Solved after a single iteration
-        let mut game = Game::new();
+        let mut game = Game::new(1);
         let result = game.play(almost_solved.clone());
         assert_that!(result.is_none(), eq(false));
         let result = result.unwrap();

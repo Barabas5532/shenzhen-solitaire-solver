@@ -557,7 +557,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("benchmark", |b| {
         b.iter(|| {
             for state in &states {
-                let mut game = Game::new();
+                let mut game = Game::new(1);
                 game.play(black_box(state.clone()));
             }
         })

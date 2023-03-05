@@ -561,7 +561,7 @@ fn main() {
     }
 
     for (i, state) in states.iter().enumerate() {
-        let mut game = Game::new();
+        let mut game = Game::new(1);
         let solution = game.play(state.clone());
 
         match solution {
