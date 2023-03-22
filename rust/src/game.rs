@@ -1,8 +1,12 @@
 use crate::card::*;
 use crate::game_state::*;
+use im::{vector, Vector};
+use rustc_hash::FxHashSet;
 use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashSet};
+use std::collections::BinaryHeap;
 use std::iter::zip;
+use std::marker::PhantomData;
+use std::rc::Rc;
 
 #[derive(Clone)]
 pub enum GameMove {
@@ -30,12 +34,50 @@ pub enum GameMove {
     },
 }
 
-struct PrioritisedGameState {
+#[derive(Clone)]
+pub struct PrioritisedGameState {
     priority: i32,
+    /// The current state of the game
     state: GameState,
-    path: Vec<GameState>,
-    moves: Vec<GameMove>,
+    /// The previous state of the game
+    parent: Option<Rc<PrioritisedGameState>>,
+    /// The move that got the game into the current state
+    game_move: GameMove,
 }
+
+/*
+struct Iter<'a> {
+    game_state: Rc<PrioritisedGameState>,
+    marker: PhantomData<&'a PrioritisedGameState>,
+}
+
+impl Iter<'_> {
+    fn new(game_state: Rc<PrioritisedGameState>) -> Iter<'static> {
+        Iter {
+            game_state,
+            marker: PhantomData,
+        }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = &'a PrioritisedGameState;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match &self.game_state.parent {
+            None => None,
+            // TODO how to use the lifetime annotations to make this happy?
+            Some(parent) => Some(Rc::as_ref(parent)),
+        }
+    }
+}
+
+impl PrioritisedGameState {
+    pub fn iter(&self) -> Iter {
+        Iter::new(self.parent.clone().unwrap())
+    }
+}
+ */
 
 impl Eq for PrioritisedGameState {}
 impl Ord for PrioritisedGameState {
@@ -57,19 +99,20 @@ impl PartialOrd<Self> for PrioritisedGameState {
 }
 
 pub struct Game {
-    open: BinaryHeap<PrioritisedGameState>,
-    closed: HashSet<GameState>,
+    open: BinaryHeap<Rc<PrioritisedGameState>>,
+    closed: FxHashSet<GameState>,
 }
 
 impl Game {
     pub fn new() -> Game {
-        Game {
-            open: BinaryHeap::new(),
-            closed: HashSet::new(),
-        }
+        let mut open = BinaryHeap::default();
+        open.reserve(64);
+        let mut closed = FxHashSet::default();
+        closed.reserve(64);
+        Game { open, closed }
     }
 
-    pub fn play(&mut self, state: GameState) -> Option<Vec<(GameState, GameMove)>> {
+    pub fn play(&mut self, state: GameState) -> Option<PrioritisedGameState> {
         self.initialise(state);
 
         while !self.open.is_empty() {
@@ -124,36 +167,32 @@ impl Game {
         self.closed.insert(state.clone());
         let new_entry = PrioritisedGameState {
             priority: Self::heuristic(&state),
-            path: vec![state.clone()],
-            // NOTE: slight difference from python here. There is no zip longest
-            // in rust, so instead we initialise this vector with a default
-            // value. This makes it the same length as path, so that regular zip
-            // works.
-            moves: vec![GameMove::Start],
+            parent: None,
+            game_move: GameMove::Start,
             state,
         };
-        self.open.push(new_entry)
+        self.open.push(Rc::new(new_entry))
     }
 
-    fn visit_node(&mut self, parent: &PrioritisedGameState, state: GameState, game_move: GameMove) {
+    fn visit_node(
+        &mut self,
+        parent: Rc<PrioritisedGameState>,
+        state: GameState,
+        game_move: GameMove,
+    ) {
         if !self.closed.contains(&state) {
             self.closed.insert(state.clone());
-            // TODO this might work more efficiently using immutable collections
-            // from the im crate
-            //
-            // Even better, we could store a reference to the previous state and
-            // just iterate the resulting linked list to find the path
             let new_entry = PrioritisedGameState {
                 priority: Self::heuristic(&state),
-                path: parent.path.iter().chain([&state]).cloned().collect(),
-                moves: parent.moves.iter().chain([&game_move]).cloned().collect(),
+                parent: Some(parent),
+                game_move,
                 state,
             };
-            self.open.push(new_entry);
+            self.open.push(Rc::new(new_entry));
         }
     }
 
-    fn expand_node(&mut self, state: PrioritisedGameState) -> Option<Vec<(GameState, GameMove)>> {
+    fn expand_node(&mut self, state: Rc<PrioritisedGameState>) -> Option<PrioritisedGameState> {
         // TODO we should make this more efficient by using a greedy algorithm
         //
         // That modification would expand a child node immediately if it has a
@@ -187,7 +226,7 @@ impl Game {
         //      sooner
 
         if state.state.is_solved() {
-            return Some(zip(state.path, state.moves).clone().collect());
+            return Some((*state).clone());
         }
 
         // Use a copy so we can reset the state after each move
@@ -197,7 +236,7 @@ impl Game {
             if state_copy.can_move_column_to_top_right_storage(i) {
                 state_copy.move_column_to_top_right_storage(i);
                 self.visit_node(
-                    &state,
+                    state,
                     state_copy,
                     GameMove::ColumnToTopRightStorage { column: i },
                 );
@@ -220,7 +259,7 @@ impl Game {
             if state_copy.can_move_top_left_to_top_right_storage(i) {
                 state_copy.move_top_left_to_top_right_storage(i);
                 self.visit_node(
-                    &state,
+                    state,
                     state_copy,
                     GameMove::TopLeftToTopRightStorage { top_left_index: i },
                 );
@@ -235,7 +274,7 @@ impl Game {
         for suit in [Suit::Red, Suit::Green, Suit::Black] {
             if state_copy.can_collect_dragons(suit) {
                 state_copy.collect_dragons(suit);
-                self.visit_node(&state, state_copy, GameMove::CollectDragons { suit });
+                self.visit_node(state.clone(), state_copy, GameMove::CollectDragons { suit });
 
                 state_copy = state.state.clone();
             }
@@ -256,7 +295,7 @@ impl Game {
                             stack_size,
                         });
                         self.visit_node(
-                            &state,
+                            state.clone(),
                             state_copy,
                             GameMove::ColumnToOtherColumn {
                                 from_column_index,
@@ -275,7 +314,7 @@ impl Game {
             if state_copy.can_move_column_to_top_left(column_index) {
                 state_copy.move_column_to_top_left(column_index);
                 self.visit_node(
-                    &state,
+                    state.clone(),
                     state_copy,
                     GameMove::ToTopLeftStorage {
                         column: column_index,
@@ -291,7 +330,7 @@ impl Game {
                 if state_copy.can_move_top_left_to_column(top_left_index, column_index) {
                     state_copy.move_top_left_to_column(top_left_index, column_index);
                     self.visit_node(
-                        &state,
+                        state.clone(),
                         state_copy,
                         GameMove::TopLeftToColumn {
                             top_left_index,
@@ -329,7 +368,7 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None
+                    value: DRAGON_VALUE
                 };
                 3
             ],
@@ -342,7 +381,7 @@ mod test {
             columns: [
                 vec![Card {
                     suit: Red,
-                    value: Some(9),
+                    value: 9,
                 }],
                 vec![],
                 vec![],
@@ -355,7 +394,7 @@ mod test {
             top_left_storage: vec![
                 Card {
                     suit: FaceDown,
-                    value: None
+                    value: DRAGON_VALUE
                 };
                 3
             ],
@@ -373,8 +412,8 @@ mod test {
         let result = game.play(solved.clone());
         assert_that!(result.is_none(), eq(false));
         let result = result.unwrap();
-        assert_that!(result.len(), eq(1));
-        assert_that!(&result[0].0, eq(&solved));
+        assert_that!(result.parent.is_none(), eq(true));
+        assert_that!(&result.state, eq(&solved));
     }
 
     #[test]
@@ -387,8 +426,8 @@ mod test {
         let result = game.play(almost_solved.clone());
         assert_that!(result.is_none(), eq(false));
         let result = result.unwrap();
-        assert_that!(result.len(), eq(2));
-        assert_that!(&result[0].0, eq(&almost_solved));
-        assert_that!(result.last().unwrap().0.is_solved(), eq(true));
+        assert_that!(result.parent.is_none(), eq(false));
+        assert_that!(&result.parent.unwrap().state, eq(&almost_solved));
+        assert_that!(result.state.is_solved(), eq(true));
     }
 }

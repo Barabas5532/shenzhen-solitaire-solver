@@ -1,8 +1,8 @@
-use crate::card::Suit::Special;
-
 use std::fmt;
 use std::fmt::Formatter;
-use std::hash::Hash;
+use std::hash::{Hash, Hasher};
+
+pub const DRAGON_VALUE: i32 = i32::MIN;
 
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 pub enum Suit {
@@ -28,41 +28,41 @@ impl TryFrom<usize> for Suit {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub struct Card {
     pub suit: Suit,
-    pub value: Option<u8>,
+    pub value: i32,
 }
+
+impl Hash for Card {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u8(self.value as u8 | ((self.suit as u8) << 4));
+    }
+}
+
+impl nohash_hasher::IsEnabled for Card {}
 
 impl Card {
     pub fn is_dragon(&self) -> bool {
-        self.value == None
+        self.value == DRAGON_VALUE
     }
 
     pub fn is_dragon_with_suit(&self, suit: Suit) -> bool {
-        self == &Card { suit, value: None }
+        self == &Card {
+            suit,
+            value: DRAGON_VALUE,
+        }
     }
 
+    #[inline(always)]
     pub fn can_be_moved_on_top_of(&self, other: &Self) -> bool {
-        if [self.suit, other.suit].contains(&Special) {
+        if [self.suit, other.suit].contains(&Suit::Special) {
             return false;
         }
 
         assert!([Suit::Black, Suit::Green, Suit::Red].contains(&self.suit));
 
-        // can't move on top of dragon
-        if other.is_dragon() {
-            return false;
-        }
-
-        // dragon can't go on top of any other card
-        if self.is_dragon() {
-            return false;
-        }
-
-        assert_ne!(other.value, None);
-
-        return self.suit != other.suit && self.value.unwrap() == other.value.unwrap() - 1;
+        self.suit != other.suit && self.value + 1 == other.value
     }
 }
 
@@ -75,8 +75,8 @@ impl fmt::Display for Card {
                 "{}{}",
                 colors[self.suit as usize],
                 match { self.value } {
-                    None => String::from("x"),
-                    Some(value) => format!("{}", value),
+                    DRAGON_VALUE => String::from("x"),
+                    value => format!("{}", value),
                 }
             ),
         })
@@ -101,19 +101,19 @@ mod tests {
     fn test_hashable() {
         let a = Card {
             suit: Suit::Red,
-            value: Some(1),
+            value: 1,
         };
         let b = Card {
             suit: Suit::Red,
-            value: Some(1),
+            value: 1,
         };
         let c = Card {
             suit: Suit::Green,
-            value: Some(1),
+            value: 1,
         };
         let d = Card {
             suit: Suit::Red,
-            value: Some(2),
+            value: 2,
         };
 
         let a_hash = calculate_hash(&a);
@@ -138,65 +138,43 @@ mod tests {
                 [
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(4),
-                    },
-                ],
-                [
-                    Card {
-                        suit: Suit::Red,
-                        value: Some(4),
-                    },
-                    Card {
-                        suit: Suit::Red,
-                        value: Some(5),
-                    },
-                ],
-            ),
-            (
-                [
-                    Card {
-                        suit: Suit::Red,
-                        value: Some(5),
-                    },
-                    Card {
-                        suit: Suit::Red,
-                        value: None,
+                        value: 4,
                     },
                 ],
                 [
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: 4,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: 5,
                     },
                 ],
             ),
             (
                 [
                     Card {
-                        suit: Suit::Black,
-                        value: Some(5),
+                        suit: Suit::Red,
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: DRAGON_VALUE,
                     },
                 ],
                 [
                     Card {
                         suit: Suit::Red,
-                        value: Some(5),
+                        value: DRAGON_VALUE,
                     },
                     Card {
-                        suit: Suit::Black,
-                        value: Some(5),
+                        suit: Suit::Red,
+                        value: 5,
                     },
                 ],
             ),
@@ -204,21 +182,43 @@ mod tests {
                 [
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: 5,
                     },
                 ],
                 [
                     Card {
                         suit: Suit::Red,
-                        value: None,
+                        value: 5,
                     },
                     Card {
                         suit: Suit::Black,
-                        value: None,
+                        value: 5,
+                    },
+                ],
+            ),
+            (
+                [
+                    Card {
+                        suit: Suit::Black,
+                        value: DRAGON_VALUE,
+                    },
+                    Card {
+                        suit: Suit::Red,
+                        value: DRAGON_VALUE,
+                    },
+                ],
+                [
+                    Card {
+                        suit: Suit::Red,
+                        value: DRAGON_VALUE,
+                    },
+                    Card {
+                        suit: Suit::Black,
+                        value: DRAGON_VALUE,
                     },
                 ],
             ),

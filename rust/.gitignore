@@ -1,2 +1,7 @@
 debug
 target
+
+# benchmark outputs
+perf.data
+perf.data.old
+flamegraph.svg
