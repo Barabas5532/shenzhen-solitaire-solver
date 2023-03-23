@@ -8,15 +8,17 @@ pub use card::*;
 pub use game::*;
 pub use game_state::*;
 
-/// Formats the sum of two numbers as string.
+/// Solves a game.
+///
+/// The argument and return value are JSON strings.
 #[pyfunction]
-fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
+fn solve_game(game: String) -> PyResult<String> {
+    Ok("hello".to_string())
 }
 
 /// A Python module implemented in Rust.
 #[pymodule]
-fn maturin_test_project(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(sum_as_string, m)?)?;
+fn shenzhen_solitaire_solver_rust(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(solve_game, m)?)?;
     Ok(())
 }

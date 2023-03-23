@@ -4,6 +4,7 @@ from dataclasses import dataclass, replace
 
 import cv2  # type: ignore
 import pyautogui  # type: ignore
+import shenzhen_solitaire_solver_rust  # type: ignore
 
 import solitaire
 from image_processing.card_position_processing import get_state_from_image
@@ -47,8 +48,8 @@ def solve_screenshot() -> (
     state = get_state_from_image(cv2.imread("game.png"))
     print(f"Found initial state:\n{state}")
 
-    game = solitaire.Game()
-    solution = game.play(state)
+    solution = shenzhen_solitaire_solver_rust.solve_game(state.to_json())
+    print(solution)
     return solution
 
 

@@ -1,10 +1,10 @@
-use crate::card::Suit::FaceDown;
 use crate::card::*;
+use serde::{Deserialize, Serialize};
 use std::fmt::{write, Formatter};
 use std::hash::{Hash, Hasher};
 use std::{cmp, fmt};
 
-#[derive(Debug, Clone, Eq)]
+#[derive(Debug, Clone, Eq, Serialize, Deserialize)]
 pub struct GameState {
     // scratch pad to temporarily store cards
     // a space is lost when dragons are stacked here, represented by a
@@ -28,7 +28,7 @@ impl GameState {
     // All the columns in the centre have no cards
     pub fn is_solved(&self) -> bool {
         for column in &self.columns {
-            if column.len() != 0 {
+            if !column.is_empty() {
                 return false;
             }
         }
@@ -53,7 +53,7 @@ impl GameState {
     // TODO Suit.SPECIAL card can always be moved to storage, it's hardcoded to
     // have value of 1 for now
     pub fn can_move_column_to_top_right_storage(&self, column_index: usize) -> bool {
-        if self.columns[column_index].len() == 0 {
+        if self.columns[column_index].is_empty() {
             return false;
         }
 
@@ -99,7 +99,7 @@ impl GameState {
 
         let card_to_move = &self.top_left_storage[top_left_index];
         // Can't move collected dragons
-        if card_to_move.suit == FaceDown {
+        if card_to_move.suit == Suit::FaceDown {
             return false;
         }
 
@@ -228,7 +228,7 @@ impl GameState {
         let column = &self.columns[p.from_column_index];
         let stack_first_card = &column[column.len() - p.stack_size];
         let target_card = self.columns[p.to_column_index].last().unwrap();
-        return stack_first_card.can_be_moved_on_top_of(target_card);
+        stack_first_card.can_be_moved_on_top_of(target_card)
     }
 
     pub fn move_column_to_other_column(&mut self, p: MoveColumnParameters) {
@@ -518,7 +518,7 @@ mod test {
 
         let mut a = empty_columns.clone();
 
-        let mut b = empty_columns.clone();
+        let mut b = empty_columns;
         b[1].push(Card {
             suit: Red,
             value: Some(1),
@@ -571,8 +571,8 @@ mod test {
 
     #[test]
     fn test_hash_ignores_top_left_permutation() {
-        /* We should be able to optimize the exution time by detecting
-         * more identical cycles where the only difference is the permuation
+        /* We should be able to optimize the execution time by detecting
+         * more identical cycles where the only difference is the permutation
          * of the cards in the top left corner
          *
          * E.G. a position with the top left storage having
@@ -600,15 +600,15 @@ mod test {
             columns: empty_columns.clone(),
             top_left_storage: vec![
                 Card {
-                    suit: Suit::Red,
+                    suit: Red,
                     value: None,
                 },
                 Card {
-                    suit: Suit::Black,
+                    suit: Black,
                     value: None,
                 },
                 Card {
-                    suit: Suit::Green,
+                    suit: Green,
                     value: Some(3),
                 },
             ],
@@ -619,15 +619,15 @@ mod test {
             columns: empty_columns,
             top_left_storage: vec![
                 Card {
-                    suit: Suit::Green,
+                    suit: Green,
                     value: Some(3),
                 },
                 Card {
-                    suit: Suit::Red,
+                    suit: Red,
                     value: None,
                 },
                 Card {
-                    suit: Suit::Black,
+                    suit: Black,
                     value: None,
                 },
             ],
@@ -776,7 +776,7 @@ mod test {
         assert_that!(state.can_move_column_to_top_left(3), eq(true));
 
         // Moving a card causes it to disappear from the column
-        let moved_card = state.columns[0].last().unwrap().clone();
+        let moved_card = *state.columns[0].last().unwrap();
         state.move_column_to_top_left(0);
         assert_that!(state.columns[0].len(), eq(0));
         // The top left storage should be filled up
@@ -852,7 +852,7 @@ mod test {
         assert_that!(state.can_collect_dragons(Red), eq(false));
         assert_that!(state.can_collect_dragons(Black), eq(false));
 
-        state.collect_dragons(Suit::Green);
+        state.collect_dragons(Green);
         assert_that!(state.columns[0].is_empty(), eq(true));
         assert_that!(state.columns[1].is_empty(), eq(true));
         assert_that!(state.columns[2].is_empty(), eq(true));
@@ -873,7 +873,7 @@ mod test {
         );
         assert_that!(state.top_left_storage.len(), eq(2));
 
-        state.collect_dragons(Suit::Red);
+        state.collect_dragons(Red);
         assert_that!(state.columns[4].is_empty(), eq(true));
         assert_that!(state.top_left_storage.len(), eq(2));
     }
@@ -1037,7 +1037,7 @@ mod test {
             eq(true)
         );
         let mut state_copy = state.clone();
-        let card_to_move = state_copy.columns[0].last().unwrap().clone();
+        let card_to_move = *state_copy.columns[0].last().unwrap();
         state_copy.move_column_to_other_column(MoveColumnParameters {
             from_column_index: 0,
             to_column_index: 7,
@@ -1067,7 +1067,7 @@ mod test {
             }),
             eq(true)
         );
-        let mut state_copy = state.clone();
+        let mut state_copy = state;
         let cards_to_move = &state_copy.columns[1][state_copy.columns[1].len() - 2..].to_vec();
         state_copy.move_column_to_other_column(MoveColumnParameters {
             from_column_index: 1,
@@ -1082,5 +1082,67 @@ mod test {
         for card_to_move in cards_to_move {
             assert_that!(state_copy.columns[0].contains(card_to_move), eq(true));
         }
+    }
+
+    #[test]
+    fn json_serialize() {
+        let state = GameState {
+            top_left_storage: vec![
+                Card {
+                    suit: FaceDown,
+                    value: None,
+                },
+                Card {
+                    suit: Red,
+                    value: Some(5),
+                },
+            ],
+            top_right_storage: [1, 2, 3, 4],
+            columns: [
+                vec![Card {
+                    suit: Black,
+                    value: None,
+                }],
+                vec![
+                    Card {
+                        suit: Red,
+                        value: None,
+                    },
+                    Card {
+                        suit: Red,
+                        value: Some(9),
+                    },
+                ],
+                vec![Card {
+                    suit: Green,
+                    value: Some(2),
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: Some(1),
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: Some(4),
+                }],
+                vec![Card {
+                    suit: Green,
+                    value: Some(5),
+                }],
+                vec![],
+                vec![Card {
+                    suit: Black,
+                    value: Some(9),
+                }],
+            ],
+        };
+
+        let json = serde_json::to_string(&state).unwrap();
+        let expected_json = "{\"top_left_storage\":[{\"suit\":\"FaceDown\",\"value\":null},{\"suit\":\"Red\",\"value\":5}],\"top_right_storage\":[1,2,3,4],\"columns\":[[{\"suit\":\"Black\",\"value\":null}],[{\"suit\":\"Red\",\"value\":null},{\"suit\":\"Red\",\"value\":9}],[{\"suit\":\"Green\",\"value\":2}],[{\"suit\":\"Green\",\"value\":1}],[{\"suit\":\"Green\",\"value\":4}],[{\"suit\":\"Green\",\"value\":5}],[],[{\"suit\":\"Black\",\"value\":9}]]}";
+        println!("{}", json);
+
+        assert_that!(json, eq(expected_json));
+        let parsed: GameState = serde_json::from_str(json.as_str()).unwrap();
+        assert_that!(parsed, eq(state));
     }
 }

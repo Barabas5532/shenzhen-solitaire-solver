@@ -1,20 +1,12 @@
 import copy
 import heapq
 import itertools
+import json
 from dataclasses import dataclass, field, replace
 from enum import IntEnum
 from typing import Optional
 
-Columns = tuple[
-    list["Card"],
-    list["Card"],
-    list["Card"],
-    list["Card"],
-    list["Card"],
-    list["Card"],
-    list["Card"],
-    list["Card"],
-]
+from dataclasses_json import dataclass_json, config
 
 
 class Suit(IntEnum):
@@ -25,9 +17,28 @@ class Suit(IntEnum):
     FACE_DOWN = 4
 
 
+@dataclass_json
 @dataclass(frozen=True)
 class Card:
-    suit: Suit
+    suit: Suit = field(
+        metadata=config(
+            encoder=lambda s: {
+                Suit.SPECIAL: "Special",
+                Suit.RED: "Red",
+                Suit.GREEN: "Green",
+                Suit.BLACK: "Black",
+                Suit.FACE_DOWN: "FaceDown",
+            }[s],
+            decoder=lambda s: {
+                "Special": Suit.SPECIAL,
+                "Red": Suit.RED,
+                "Green": Suit.GREEN,
+                "Black": Suit.BLACK,
+                "FaceDown": Suit.FACE_DOWN,
+            }[s],
+        )
+    )
+
     value: Optional[int]
 
     colors = ["🆒", "🟥", "🟩", "⬛"]
@@ -100,24 +111,45 @@ class Card:
         return self.suit != other.suit and self.value == other.value - 1
 
 
+# TODO Using "Card" here as a forward reference breaks dataclasses-json's
+#      from_json function. The Cards are left as a dict, instead of getting
+#      deserialised. Create minimal example and report bug.
+Columns = tuple[
+    list[Card],
+    list[Card],
+    list[Card],
+    list[Card],
+    list[Card],
+    list[Card],
+    list[Card],
+    list[Card],
+]
+
+
+@dataclass_json
+@dataclass
 class GameState:
+    # The main play area, where all of the cards are placed at the start
+    columns: Columns
+
+    # scratch pad to temporarily store cards
+    # a space is lost when dragons are stacked here, represented by a
+    # Card(Suit.FACE_DOWN, None)
+    top_left_storage: list[Card]
+    # The aim of the game is to get all the cards stacked here
+    top_right_storage: list[int]
+
     def __init__(
         self,
         columns: Columns,
-        top_left_storage: list = [],
-        top_right_storage: list = [0 for _ in range(4)],
+        top_left_storage: list[Card] = [],
+        top_right_storage: list[int] = [0 for _ in range(4)],
     ) -> None:
         assert len(top_left_storage) <= 3
 
-        # scratch pad to temporarily store cards
-        # a space is lost when dragons are stacked here, represented by a
-        # Card(Suit.FACE_DOWN, None)
-        self.top_left_storage = top_left_storage
-        # The aim of the game is to get all the cards stacked here
-        self.top_right_storage = top_right_storage
-
-        # The main play area, where all of the cards are placed at the start
         self.columns = columns
+        self.top_left_storage = top_left_storage
+        self.top_right_storage = top_right_storage
 
     # All the columns in the centre have no cards
     def is_solved(self) -> bool:
@@ -640,6 +672,8 @@ if __name__ == "__main__":
 
     import unittest
 
+    from hamcrest import assert_that, equal_to
+
     class CardTest(unittest.TestCase):
         def test_hashable(self) -> None:
             a = Card(Suit.RED, 1)
@@ -1148,6 +1182,76 @@ if __name__ == "__main__":
             self.assertEqual(3, len(state_copy.columns[0]))
             for card_to_move in cards_to_move:
                 self.assertIn(card_to_move, state_copy.columns[0])
+
+        def test_json(self) -> None:
+            state = GameState(
+                top_left_storage=[
+                    Card(
+                        Suit.FACE_DOWN,
+                        None,
+                    ),
+                    Card(
+                        Suit.RED,
+                        5,
+                    ),
+                ],
+                top_right_storage=[1, 2, 3, 4],
+                columns=(
+                    [
+                        Card(
+                            Suit.BLACK,
+                            None,
+                        )
+                    ],
+                    [
+                        Card(
+                            Suit.RED,
+                            None,
+                        ),
+                        Card(
+                            Suit.RED,
+                            9,
+                        ),
+                    ],
+                    [
+                        Card(
+                            Suit.GREEN,
+                            2,
+                        )
+                    ],
+                    [
+                        Card(
+                            Suit.GREEN,
+                            1,
+                        )
+                    ],
+                    [
+                        Card(
+                            Suit.GREEN,
+                            4,
+                        )
+                    ],
+                    [
+                        Card(
+                            Suit.GREEN,
+                            5,
+                        )
+                    ],
+                    [],
+                    [
+                        Card(
+                            Suit.BLACK,
+                            9,
+                        )
+                    ],
+                ),
+            )
+
+            rust_json = '{"top_left_storage":[{"suit":"FaceDown","value":null},{"suit":"Red","value":5}],"top_right_storage":[1,2,3,4],"columns":[[{"suit":"Black","value":null}],[{"suit":"Red","value":null},{"suit":"Red","value":9}],[{"suit":"Green","value":2}],[{"suit":"Green","value":1}],[{"suit":"Green","value":4}],[{"suit":"Green","value":5}],[],[{"suit":"Black","value":9}]]}'
+            # This string was generated in Rust
+            expected_dict = json.loads(rust_json)
+            assert_that(json.loads(state.to_json()), equal_to(expected_dict))
+            assert_that(GameState.from_json(rust_json), equal_to(state))
 
     class SolitaireTest(unittest.TestCase):
         def setUp(self) -> None:
