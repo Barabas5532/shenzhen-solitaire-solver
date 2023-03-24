@@ -1289,6 +1289,7 @@ if __name__ == "__main__":
             self.assertEqual(self.almost_solved, result[0][0])
             self.assertTrue(result[-1][0].is_solved())
 
+
     debug_print()
 
     print("tests")
