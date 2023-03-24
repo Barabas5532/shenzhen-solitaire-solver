@@ -1,10 +1,9 @@
-use crate::card::Suit::Special;
-
+use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Formatter;
 use std::hash::Hash;
 
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Serialize, Deserialize)]
 pub enum Suit {
     Special,
     Red,
@@ -28,7 +27,7 @@ impl TryFrom<usize> for Suit {
     }
 }
 
-#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Serialize, Deserialize)]
 pub struct Card {
     pub suit: Suit,
     pub value: Option<u8>,
@@ -36,7 +35,7 @@ pub struct Card {
 
 impl Card {
     pub fn is_dragon(&self) -> bool {
-        self.value == None
+        self.value.is_none()
     }
 
     pub fn is_dragon_with_suit(&self, suit: Suit) -> bool {
@@ -44,7 +43,7 @@ impl Card {
     }
 
     pub fn can_be_moved_on_top_of(&self, other: &Self) -> bool {
-        if [self.suit, other.suit].contains(&Special) {
+        if [self.suit, other.suit].contains(&Suit::Special) {
             return false;
         }
 
@@ -62,7 +61,7 @@ impl Card {
 
         assert_ne!(other.value, None);
 
-        return self.suit != other.suit && self.value.unwrap() == other.value.unwrap() - 1;
+        self.suit != other.suit && self.value.unwrap() == other.value.unwrap() - 1
     }
 }
 

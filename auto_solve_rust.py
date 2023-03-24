@@ -1,9 +1,11 @@
 import shutil
 import uuid
 from dataclasses import dataclass, replace
+import json
 
 import cv2  # type: ignore
 import pyautogui  # type: ignore
+import shenzhen_solitaire_solver_rust  # type: ignore
 
 import solitaire
 from image_processing.card_position_processing import get_state_from_image
@@ -40,6 +42,42 @@ def create_screenshot() -> None:
     screenshot = pyautogui.screenshot(region=(400, 380, 1200, 380))
     screenshot.save("game.png")
 
+def move_from_dict(json: dict[str, any]) -> None:
+    match json:
+        case {"ColumnToTopRightStorage": {"column": int(column)}}:
+            return solitaire.GameMoveColumnToTopRightStorage(column)
+        case {"TopLeftToTopRightStorage": {"top_left_index": int(index)}}:
+            return solitaire.GameMoveTopLeftToTopRightStorage(index)
+        case {"CollectDragons": {"suit": "Special"}}:
+            return solitaire.GameMoveCollectDragons(solitaire.Suit.SPECIAL)
+        case {"CollectDragons": {"suit": "Red"}}:
+            return solitaire.GameMoveCollectDragons(solitaire.Suit.RED)
+        case {"CollectDragons": {"suit": "Green"}}:
+            return solitaire.GameMoveCollectDragons(solitaire.Suit.GREEN)
+        case {"CollectDragons": {"suit": "Black"}}:
+            return solitaire.GameMoveCollectDragons(solitaire.Suit.BLACK)
+        case {"CollectDragons": {"suit": "FACE_DOWN"}}:
+            return solitaire.GameMoveCollectDragons(solitaire.Suit.FACE_DOWN)
+        case {"ColumnToOtherColumn": {
+            "from_column_index": int(from_column_index),
+            "to_column_index": int(to_column_index),
+            "stack_size": int(stack_size),
+            }}:
+            return solitaire.GameMoveColumnToOtherColumn(
+                from_column_index=from_column_index,
+                to_column_index=to_column_index,
+                stack_size=stack_size,
+            )
+        case {"ToTopLeftStorage": {"column": int(column)}}:
+            return solitaire.GameMoveToTopLeftStorage(column)
+        case {"TopLeftToColumn": {
+            "top_left_index": int(top_left_index),
+            "column_index": int(column_index),
+            }}:
+            return solitaire.GameMoveTopLeftToColumn(
+                top_left_index=top_left_index,
+                column_index=column_index,
+            )
 
 def solve_screenshot() -> (
     None | list[tuple[solitaire.GameState, solitaire.GameMoveBase]]
@@ -47,8 +85,11 @@ def solve_screenshot() -> (
     state = get_state_from_image(cv2.imread("game.png"))
     print(f"Found initial state:\n{state}")
 
-    game = solitaire.Game()
-    solution = game.play(state)
+    solution = shenzhen_solitaire_solver_rust.solve_game(state.to_json())
+    solution = json.loads(solution)
+    print(solution)
+    solution = [(solitaire.GameState.from_dict(x[0]), move_from_dict(x[1])) for x in solution]
+    print(solution)
     return solution
 
 

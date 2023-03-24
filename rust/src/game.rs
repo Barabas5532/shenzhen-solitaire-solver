@@ -1,12 +1,14 @@
 use crate::card::*;
 use crate::game_state::*;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashSet};
+use std::iter;
 use std::iter::zip;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum GameMove {
-    Start,
+    Done,
     ColumnToTopRightStorage {
         column: usize,
     },
@@ -125,11 +127,7 @@ impl Game {
         let new_entry = PrioritisedGameState {
             priority: Self::heuristic(&state),
             path: vec![state.clone()],
-            // NOTE: slight difference from python here. There is no zip longest
-            // in rust, so instead we initialise this vector with a default
-            // value. This makes it the same length as path, so that regular zip
-            // works.
-            moves: vec![GameMove::Start],
+            moves: vec![],
             state,
         };
         self.open.push(new_entry)
@@ -187,7 +185,22 @@ impl Game {
         //      sooner
 
         if state.state.is_solved() {
-            return Some(zip(state.path, state.moves).clone().collect());
+            assert_eq!(state.path.len() - 1, state.moves.len());
+            return Some(
+                zip(
+                    state.path,
+                    state
+                        .moves
+                        .iter()
+                        // Slight difference from python here. Zip longest is
+                        // not available, so we extend the moves by one element
+                        // so that it is the same length as the path.
+                        .chain(iter::once(&GameMove::Done))
+                        .cloned()
+                        .collect::<Vec<GameMove>>(),
+                )
+                .collect(),
+            );
         }
 
         // Use a copy so we can reset the state after each move
